@@ -2,15 +2,19 @@ import jwt from 'jsonwebtoken'
 import bcrypt from 'bcryptjs'
 import { NextRequest } from 'next/server'
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET environment variable is required')
-}
-if (!process.env.JWT_REFRESH_SECRET) {
-  throw new Error('JWT_REFRESH_SECRET environment variable is required')
+function getJwtSecret(): string {
+  if (!process.env.JWT_SECRET) {
+    throw new Error('JWT_SECRET environment variable is required')
+  }
+  return process.env.JWT_SECRET
 }
 
-const JWT_SECRET = process.env.JWT_SECRET
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET
+function getJwtRefreshSecret(): string {
+  if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is required')
+  }
+  return process.env.JWT_REFRESH_SECRET
+}
 
 export interface JWTPayload {
   userId: string
@@ -27,19 +31,19 @@ export function comparePassword(password: string, hash: string): Promise<boolean
 }
 
 export function generateToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' })
+  return jwt.sign(payload, getJwtSecret(), { expiresIn: '24h' })
 }
 
 export function generateRefreshToken(payload: JWTPayload): string {
-  return jwt.sign(payload, JWT_REFRESH_SECRET, { expiresIn: '7d' })
+  return jwt.sign(payload, getJwtRefreshSecret(), { expiresIn: '7d' })
 }
 
 export function verifyToken(token: string): JWTPayload {
-  return jwt.verify(token, JWT_SECRET) as JWTPayload
+  return jwt.verify(token, getJwtSecret()) as JWTPayload
 }
 
 export function verifyRefreshToken(token: string): JWTPayload {
-  return jwt.verify(token, JWT_REFRESH_SECRET) as JWTPayload
+  return jwt.verify(token, getJwtRefreshSecret()) as JWTPayload
 }
 
 export function getTokenFromRequest(request: NextRequest): string | null {
