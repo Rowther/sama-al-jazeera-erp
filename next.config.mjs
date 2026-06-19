@@ -7,6 +7,7 @@ const nextConfig = {
     ],
   },
   experimental: {
+    instrumentationHook: true,
     serverActions: {
       bodySizeLimit: "10mb",
     },
@@ -23,7 +24,7 @@ const nextConfig = {
   compress: true,
   productionBrowserSourceMaps: false,
   compiler: {
-    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn", "log", "info"] } : false,
   },
 };
 
