@@ -14,6 +14,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.2.4
         version: 1.2.4(@types/react@19.2.15)(react@19.2.4)
+      '@tailwindcss/oxide-linux-x64-gnu':
+        specifier: 4.3.0
+        version: 4.3.0
       '@tanstack/react-query':
         specifier: ^5.0.0
         version: 5.100.14(react@19.2.4)
@@ -117,10 +120,6 @@ importers:
       typescript:
         specifier: ^5
         version: 5.9.3
-    optionalDependencies:
-      '@tailwindcss/oxide-linux-x64-gnu':
-        specifier: 4.3.0
-        version: 4.3.0
 
 packages:
 
@@ -648,7 +647,6 @@ packages:
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
 
   '@tailwindcss/oxide-linux-x64-musl@4.3.0':
     resolution: {integrity: sha512-Z0IADbDo8bh6I7h2IQMx601AdXBLfFpEdUotft86evd/8ZPflZe9COPO8Q1vw+pfLWIUo9zN/JGZvwuAJqduqg==}
@@ -3377,8 +3375,7 @@ snapshots:
   '@tailwindcss/oxide-linux-arm64-musl@4.3.0':
     optional: true
 
-  '@tailwindcss/oxide-linux-x64-gnu@4.3.0':
-    optional: true
+  '@tailwindcss/oxide-linux-x64-gnu@4.3.0': {}
 
   '@tailwindcss/oxide-linux-x64-musl@4.3.0':
     optional: true
