@@ -29,8 +29,13 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
+COPY --from=builder /app/node_modules/tsx ./node_modules/tsx
+COPY --from=builder /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
+COPY --from=builder /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
+COPY scripts ./scripts
 
-RUN chown -R nextjs:nodejs /app/prisma /app/node_modules/.prisma /app/node_modules/prisma /app/node_modules/@prisma
+RUN chown -R nextjs:nodejs /app/prisma /app/node_modules/.prisma /app/node_modules/prisma /app/node_modules/@prisma /app/node_modules/tsx /app/scripts
 
 USER nextjs
 
@@ -38,4 +43,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["sh", "-c", "node node_modules/prisma/build/index.js db push && node server.js"]
+CMD ["sh", "-c", "node scripts/init-db.mjs"]

@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/authStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
 export default function LoginPage() {
@@ -15,8 +15,15 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
-  const { login } = useAuthStore()
+  const { login, error: storeError, clearError } = useAuthStore()
   const router = useRouter()
+
+  useEffect(() => {
+    if (storeError) {
+      setError(storeError)
+      clearError()
+    }
+  }, [storeError, clearError])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,7 +41,8 @@ export default function LoginPage() {
       }
       router.push(dashboards[role || ""] || "/dashboard/owner")
     } catch (err: any) {
-      setError(err.message || "Invalid credentials")
+      const message = err?.message || (typeof err === "string" ? err : null)
+      if (message) setError(message)
     } finally {
       setLoading(false)
     }
@@ -55,8 +63,12 @@ export default function LoginPage() {
           <CardContent className="p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               {error && (
-                <div className="bg-red-50 text-[#F45D5D] text-sm p-3 rounded-xl">
-                  {error}
+                <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl animate-[slideDown_0.3s_ease-out]">
+                  <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-semibold text-red-800 text-sm">Login failed</p>
+                    <p className="text-red-600 text-sm mt-0.5">{error}</p>
+                  </div>
                 </div>
               )}
               <div className="space-y-2">
@@ -67,6 +79,7 @@ export default function LoginPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@company.com"
                   required
+                  className={error ? "border-red-300 focus-visible:ring-red-400" : ""}
                 />
               </div>
               <div className="space-y-2">
@@ -78,6 +91,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    className={error ? "border-red-300 focus-visible:ring-red-400" : ""}
                   />
                   <button
                     type="button"
