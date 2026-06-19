@@ -1,0 +1,1018 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  MANAGER
+  DESIGNER
+  INVENTORY_MANAGER
+  ACCOUNTANT
+  HR
+  LABOUR
+  PRODUCTION_MANAGER
+}
+
+enum WorkOrderStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  DESIGN_ASSIGNED
+  DESIGN_IN_PROGRESS
+  DESIGN_COMPLETED
+  DESIGN_APPROVED
+  READY_FOR_PRODUCTION
+  PRODUCTION_STARTED
+  PRODUCTION_COMPLETED
+  DELIVERED
+  CLOSED
+  CANCELLED
+
+  // New simplified statuses
+  WORK_ORDER_CREATED
+  DESIGN_SUBMITTED
+  MATERIAL_REVIEW
+  IN_PRODUCTION
+  READY_FOR_DELIVERY
+}
+
+enum MaterialRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DesignRevisionStatus {
+  PENDING_REVIEW
+  APPROVED
+  REVISION_REQUESTED
+  REJECTED
+}
+
+enum MaterialStatus {
+  PENDING
+  AVAILABLE
+  PARTIALLY_AVAILABLE
+  OUT_OF_STOCK
+  ORDERED
+  RECEIVED
+  APPROVED
+  REJECTED
+}
+
+enum PurchaseType {
+  CASH
+  LPO
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIALLY_PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum InventoryMovementType {
+  IN
+  OUT
+  RESERVED
+  RETURNED
+  DAMAGED
+  LOST
+}
+
+enum StageStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  SKIPPED
+}
+
+enum WorkOrderItemStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  DESIGN_COMPLETED
+  APPROVAL_REQUIRED
+  INVENTORY_LOW
+  ADVANCE_RECEIVED
+  PAYMENT_OVERDUE
+  WORK_ORDER_DELAYED
+  PURCHASE_REQUEST_PENDING
+  DESIGN_REVISION_REQUESTED
+  WORK_ORDER_ASSIGNED
+  MATERIAL_ALLOCATED
+  MATERIAL_PURCHASED
+  MATERIAL_COST_APPROVAL
+  PROCUREMENT_COMPLETED
+  PURCHASE_APPROVAL_REQUIRED
+  PURCHASE_APPROVED
+  PURCHASE_REJECTED
+  STAGE_DELAYED
+  LABOR_COST_EXCEEDED
+  BUDGET_OVERRUN
+  PRODUCTION_BOTTLENECK
+  MATERIAL_REQUEST_CREATED
+  MATERIAL_REQUEST_APPROVED
+  MATERIAL_REQUEST_REJECTED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          Role
+  phone         String?
+  avatar        String?
+  isActive      Boolean  @default(true)
+  refreshToken  String?
+  lastLogin     DateTime?
+  hourlyRate    Float    @default(0)
+  dailyRate     Float    @default(0)
+  overtimeRate  Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  employee          Employee?
+  assignedOrders    WorkOrder[]           @relation("AssignedDesigner")
+  createdOrders     WorkOrder[]           @relation("CreatedBy")
+  approvals         DesignApproval[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  activities        ActivityHistory[]
+  expenses          Expense[]
+  payments          Payment[]
+  documents         Document[]
+  purchases         PurchaseOrder[]
+  designs           Design[]
+  designRevisions   DesignRevision[]
+  inventoryMovements InventoryMovement[]
+  workOrderTeams    WorkOrderTeamMember[]
+  purchaseEntries   PurchaseEntry[]
+  purchaseDocuments PurchaseDocument[]
+  workerAssignments WorkerAssignment[]
+  jobCardsGenerated JobCard[]            @relation("GeneratedBy")
+  digitalSignatures DigitalSignature[]
+  delayAlerts       DelayAlert[]
+  assignedStages    ProductionStage[]    @relation("StageAssignedTo")
+  laborEntries      LaborEntry[]
+  purchaseApprovalsRequested PurchaseApproval[] @relation("RequestedBy")
+  purchaseApprovalsApproved  PurchaseApproval[] @relation("ApprovedBy")
+
+  qualityApprovals          JobCard[]         @relation("QualityApprovedBy")
+  productionApprovals       JobCard[]         @relation("ProductionApprovedBy")
+  inventoryApprovals        JobCard[]         @relation("InventoryApprovedBy")
+  accountsApprovals         JobCard[]         @relation("AccountsApprovedBy")
+  coordinatorApprovals      JobCard[]         @relation("CoordinatorApprovedBy")
+  managerApprovals          JobCard[]         @relation("ManagerApprovedBy")
+
+  scheduleEvents            ScheduleEvent[]
+  materialRequests          MaterialRequest[] @relation("MaterialRequestRequester")
+  materialApprovals         MaterialRequest[] @relation("MaterialRequestApprovedBy")
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model Employee {
+  id              String   @id @default(cuid())
+  employeeId      String   @unique
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id])
+  photo           String?
+  phone           String?
+  address         String?
+  joiningDate     DateTime?
+  department      String?
+  designation     String?
+  passportNumber  String?
+  passportExpiry  DateTime?
+  visaNumber      String?
+  visaExpiry      DateTime?
+  emiratesId      String?
+  contractDoc     String?
+  salary          Float?
+  overtimeRate    Float?
+  workingHours    Float?
+  leaveBalance    Float    @default(30)
+  performance     String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  payroll   Payroll[]
+  attendance Attendance[]
+
+  @@index([department])
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String
+  email       String?
+  location    String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workOrders  WorkOrder[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Installment {
+  id          String   @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  amount      Float
+  date        DateTime @default(now())
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([workOrderId])
+}
+
+model WorkerAssignment {
+  id              String       @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder    @relation(fields: [workOrderId], references: [id])
+  workOrderItemId String?
+  workOrderItem   WorkOrderItem? @relation(fields: [workOrderItemId], references: [id])
+  userId          String
+  user            User         @relation(fields: [userId], references: [id])
+  role            String       @default("CARPENTER")
+  assignedDate    DateTime     @default(now())
+  progress        Int          @default(0)
+  hourlyRate      Float        @default(0)
+  dailyRate       Float        @default(0)
+  overtimeRate    Float        @default(0)
+  totalHoursWorked Float       @default(0)
+  totalCost       Float        @default(0)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([workOrderId, userId])
+  @@index([workOrderId])
+  @@index([workOrderItemId])
+  @@index([userId])
+}
+
+model JobCard {
+  id                    String   @id @default(cuid())
+  workOrderId           String   @unique
+  workOrder             WorkOrder @relation(fields: [workOrderId], references: [id])
+  generatedAt           DateTime @default(now())
+  generatedById         String
+  generatedBy           User     @relation("GeneratedBy", fields: [generatedById], references: [id])
+  signatureId           String?   @unique
+  signature             DigitalSignature? @relation(fields: [signatureId], references: [id])
+
+  // Pre-Production Checklist
+  designCompleted       Boolean  @default(false)
+  designApproved        Boolean  @default(false)
+  materialSelectionDone Boolean  @default(false)
+  measurementsVerified  Boolean  @default(false)
+  budgetApproved        Boolean  @default(false)
+  advancePaymentReceived Boolean @default(false)
+
+  // Production Section
+  carpenterName         String?
+  productionStartDate   DateTime?
+  expectedFinishDate    DateTime?
+  actualFinishDate      DateTime?
+  productionNotes       String?
+  delayNotes            String?
+  workerComments        String?
+
+  // Completion & Delivery Approvals
+  qualityApproved       Boolean  @default(false)
+  qualityApprovedById   String?
+  qualityApprovedBy     User?    @relation("QualityApprovedBy", fields: [qualityApprovedById], references: [id])
+  qualityApprovedAt     DateTime?
+  productionApproved    Boolean  @default(false)
+  productionApprovedById String?
+  productionApprovedBy  User?    @relation("ProductionApprovedBy", fields: [productionApprovedById], references: [id])
+  productionApprovedAt  DateTime?
+  inventoryApproved     Boolean  @default(false)
+  inventoryApprovedById String?
+  inventoryApprovedBy   User?    @relation("InventoryApprovedBy", fields: [inventoryApprovedById], references: [id])
+  inventoryApprovedAt   DateTime?
+  accountsApproved      Boolean  @default(false)
+  accountsApprovedById  String?
+  accountsApprovedBy    User?    @relation("AccountsApprovedBy", fields: [accountsApprovedById], references: [id])
+  accountsApprovedAt    DateTime?
+  coordinatorApproved   Boolean  @default(false)
+  coordinatorApprovedById String?
+  coordinatorApprovedBy User?    @relation("CoordinatorApprovedBy", fields: [coordinatorApprovedById], references: [id])
+  coordinatorApprovedAt DateTime?
+  managerApproved       Boolean  @default(false)
+  managerApprovedById   String?
+  managerApprovedBy     User?    @relation("ManagerApprovedBy", fields: [managerApprovedById], references: [id])
+  managerApprovedAt     DateTime?
+
+  checklistItems        JobCardChecklistItem[]
+  @@index([workOrderId])
+}
+
+model JobCardChecklistItem {
+  id          String   @id @default(cuid())
+  jobCardId   String
+  jobCard     JobCard  @relation(fields: [jobCardId], references: [id])
+  itemLabel   String
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+  completedBy String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobCardId])
+}
+
+model DigitalSignature {
+  id            String   @id @default(cuid())
+  workOrderId   String   @unique
+  workOrder     WorkOrder @relation(fields: [workOrderId], references: [id])
+  approvedById  String
+  approvedBy    User     @relation(fields: [approvedById], references: [id])
+  signatureType String   @default("DRAWN")
+  signatureData String?
+  approvalPin   String?
+  approvedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  jobCard JobCard?
+
+  @@index([workOrderId])
+  @@index([approvedById])
+}
+
+model DelayAlert {
+  id          String   @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  alertType   String   @default("DELAYED_PRODUCTION")
+  message     String
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  isResolved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  @@index([workOrderId])
+  @@index([isResolved])
+  @@index([createdById])
+}
+
+model WorkOrder {
+  id              String          @id @default(cuid())
+  workOrderId     String          @unique
+  customerId      String
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  projectType     String?
+  furnitureType   String?
+  description     String?
+  priority        String          @default("MEDIUM")
+  dueDate         DateTime?
+  dimensions      String?
+  items           Json         @default("[]")
+  notes           String?
+  estimatedBudget Float?
+  estimatedMaterialCost Float?
+  estimatedLaborCost Float?
+  estimatedTransportCost Float?
+  advanceReceived Float           @default(0)
+  finalPrice      Float?
+  remainingAmount Float?
+  paymentTerms    String?
+  status          WorkOrderStatus @default(WORK_ORDER_CREATED)
+  assignedToId    String?
+  assignedTo      User?           @relation("AssignedDesigner", fields: [assignedToId], references: [id])
+  createdById     String
+  createdBy       User            @relation("CreatedBy", fields: [createdById], references: [id])
+  totalCost       Float           @default(0)
+  actualLaborCost Float           @default(0)
+  actualTransportCost Float       @default(0)
+  profitMargin    Float?
+  costOverrun     Float           @default(0)
+  isBudgetOverrun Boolean         @default(false)
+  isDelayed       Boolean         @default(false)
+  delayDays       Int             @default(0)
+  productionStartedAt DateTime?
+  productionCompletedAt DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  designs             Design[]
+  inventoryAllocation WorkOrderInventory[]
+  expenses            Expense[]
+  payments            Payment[]
+  documents           Document[]
+  activities          ActivityHistory[]
+  teamMembers         WorkOrderTeamMember[]
+  materials           WorkOrderMaterial[]
+  purchaseEntries     PurchaseEntry[]
+  purchaseOrders      PurchaseOrder[]
+  installments        Installment[]
+  workerAssignments   WorkerAssignment[]
+  jobCard             JobCard?
+  digitalSignature    DigitalSignature?
+  delayAlerts         DelayAlert[]
+  productionStages    ProductionStage[]
+  laborEntries        LaborEntry[]
+  purchaseApprovals   PurchaseApproval[]
+  scheduleEvents      ScheduleEvent[]
+  materialRequests    MaterialRequest[]
+  workOrderItems      WorkOrderItem[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([createdById])
+  @@index([customerId])
+  @@index([createdAt])
+  @@index([priority])
+  @@index([isDelayed])
+  @@index([isBudgetOverrun])
+}
+
+model WorkOrderItem {
+  id              String              @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder           @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  name            String
+  description     String?
+  quantity        Int                 @default(1)
+  unitPrice       Float?
+  totalPrice      Float?
+  image           String?
+  dimensions      String?
+  notes           String?
+  design          Json                @default("null")
+  status          WorkOrderItemStatus @default(PENDING)
+  progress        Int                 @default(0)
+  isDelayed       Boolean             @default(false)
+  delayDays       Int                 @default(0)
+  deliveryStatus  String?             @default("PENDING")
+  estimatedCost   Float?
+  actualCost      Float               @default(0)
+  productionStartedAt   DateTime?
+  productionCompletedAt DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  workerAssignments  WorkerAssignment[]
+  productionStages   ProductionStage[]
+  materials          WorkOrderMaterial[]
+  inventoryAllocation WorkOrderInventory[]
+  laborEntries       LaborEntry[]
+  expenses           Expense[]
+
+  @@index([workOrderId])
+  @@index([status])
+  @@index([workOrderId, status])
+}
+
+model WorkOrderTeamMember {
+  id          String   @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  role        String
+  createdAt   DateTime @default(now())
+
+  @@unique([workOrderId, userId])
+}
+
+model WorkOrderMaterial {
+  id                String         @id @default(cuid())
+  workOrderId       String
+  workOrder         WorkOrder      @relation(fields: [workOrderId], references: [id])
+  workOrderItemId   String?
+  workOrderItem     WorkOrderItem? @relation(fields: [workOrderItemId], references: [id])
+  materialName      String
+  category          String?
+  requiredQuantity  Float
+  unit              String         @default("pcs")
+  estimatedCost     Float          @default(0)
+  actualCost        Float          @default(0)
+  supplierPreference String?
+  priority          String         @default("MEDIUM")
+  notes             String?
+
+  availableQuantity Float          @default(0)
+  reservedQuantity  Float          @default(0)
+  missingQuantity   Float          @default(0)
+  status            MaterialStatus @default(PENDING)
+
+  purchaseEntryItems PurchaseEntryItem[]
+
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  @@index([workOrderId])
+  @@index([workOrderItemId])
+  @@index([status])
+}
+
+model PurchaseEntry {
+  id             String        @id @default(cuid())
+  workOrderId    String
+  workOrder      WorkOrder     @relation(fields: [workOrderId], references: [id])
+  supplierId     String?
+  supplier       Supplier?     @relation(fields: [supplierId], references: [id])
+  supplierName   String?
+  supplierContact String?
+  purchaseType   PurchaseType  @default(CASH)
+  invoiceNumber  String?
+  billNumber     String?
+  purchaseDate   DateTime      @default(now())
+  totalCost      Float         @default(0)
+  paymentStatus  PaymentStatus @default(PENDING)
+  notes          String?
+  createdById    String
+  createdBy      User          @relation(fields: [createdById], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items          PurchaseEntryItem[]
+  documents      PurchaseDocument[]
+  purchaseApproval PurchaseApproval?
+
+  @@index([workOrderId])
+  @@index([paymentStatus])
+  @@index([createdById])
+  @@index([createdAt])
+}
+
+model PurchaseEntryItem {
+  id               String          @id @default(cuid())
+  purchaseEntryId  String
+  purchaseEntry    PurchaseEntry   @relation(fields: [purchaseEntryId], references: [id])
+  workOrderMaterialId String?
+  workOrderMaterial   WorkOrderMaterial? @relation(fields: [workOrderMaterialId], references: [id])
+  materialName     String
+  quantity         Float
+  unitPrice        Float
+  totalPrice       Float
+  createdAt        DateTime        @default(now())
+}
+
+model PurchaseDocument {
+  id               String        @id @default(cuid())
+  purchaseEntryId  String
+  purchaseEntry    PurchaseEntry @relation(fields: [purchaseEntryId], references: [id])
+  fileUrl          String
+  fileType         String
+  uploadedById     String
+  uploadedBy       User          @relation(fields: [uploadedById], references: [id])
+  createdAt        DateTime      @default(now())
+}
+
+model Design {
+  id            String   @id @default(cuid())
+  workOrderId   String
+  workOrder     WorkOrder @relation(fields: [workOrderId], references: [id])
+  title         String
+  description   String?
+  files         Json     @default("[]")
+  status        DesignRevisionStatus @default(PENDING_REVIEW)
+  version       Int      @default(1)
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  revisions     DesignRevision[]
+  approvals     DesignApproval[]
+
+  @@index([workOrderId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model DesignRevision {
+  id            String   @id @default(cuid())
+  designId      String
+  design        Design   @relation(fields: [designId], references: [id])
+  files         Json     @default("[]")
+  notes         String?
+  version       Int
+  createdById   String
+  createdBy     User     @relation(fields: [createdById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([designId])
+}
+
+model DesignApproval {
+  id            String   @id @default(cuid())
+  designId      String
+  design        Design   @relation(fields: [designId], references: [id])
+  approvedById  String
+  approvedBy    User     @relation(fields: [approvedById], references: [id])
+  status        DesignRevisionStatus
+  comments      String?
+  createdAt     DateTime @default(now())
+
+  @@index([designId])
+  @@index([approvedById])
+}
+
+model InventoryCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  items       InventoryItem[]
+}
+
+model InventoryItem {
+  id              String   @id @default(cuid())
+  name            String
+  categoryId      String
+  category        InventoryCategory @relation(fields: [categoryId], references: [id])
+  sku             String   @unique
+  unit            String
+  price           Float
+  stockQuantity   Float    @default(0)
+  minStock        Float    @default(0)
+  maxStock        Float    @default(999999)
+  location        String?
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  description     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  movements       InventoryMovement[]
+  allocations     WorkOrderInventory[]
+
+  @@index([categoryId])
+  @@index([supplierId])
+  @@index([name])
+}
+
+model InventoryMovement {
+  id            String               @id @default(cuid())
+  itemId        String
+  item          InventoryItem        @relation(fields: [itemId], references: [id])
+  type          InventoryMovementType
+  quantity      Float
+  referenceId   String?
+  referenceType String?
+  notes         String?
+  createdById   String
+  createdBy     User                 @relation(fields: [createdById], references: [id])
+  createdAt     DateTime             @default(now())
+
+  @@index([itemId])
+  @@index([type])
+  @@index([referenceId])
+}
+
+model WorkOrderInventory {
+  id              String        @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder     @relation(fields: [workOrderId], references: [id])
+  workOrderItemId String?
+  workOrderItem   WorkOrderItem? @relation(fields: [workOrderItemId], references: [id])
+  itemId          String
+  item            InventoryItem @relation(fields: [itemId], references: [id])
+  quantityAllocated Float
+  quantityUsed    Float         @default(0)
+  quantityWasted  Float         @default(0)
+  createdAt       DateTime      @default(now())
+
+  @@index([workOrderId])
+  @@index([workOrderItemId])
+  @@index([itemId])
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
+  address     String?
+  contactPerson String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items       InventoryItem[]
+  purchases   PurchaseOrder[]
+  purchaseEntries PurchaseEntry[]
+}
+
+model PurchaseOrder {
+  id            String       @id @default(cuid())
+  poNumber      String       @unique
+  purchaseType  PurchaseType
+  supplierId    String?
+  supplier      Supplier?    @relation(fields: [supplierId], references: [id])
+  amount        Float
+  billUrl       String?
+  invoiceUrl    String?
+  items         Json         @default("[]")
+  status        PaymentStatus @default(PENDING)
+  notes         String?
+  createdById   String
+  createdBy     User         @relation(fields: [createdById], references: [id])
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([workOrderId])
+  @@index([supplierId])
+  @@index([purchaseType])
+  @@index([createdAt])
+}
+
+model Expense {
+  id            String       @id @default(cuid())
+  workOrderId   String?
+  workOrder     WorkOrder?   @relation(fields: [workOrderId], references: [id])
+  workOrderItemId String?
+  workOrderItem WorkOrderItem? @relation(fields: [workOrderItemId], references: [id])
+  category      String
+  amount        Float
+  description   String?
+  billUrl       String?
+  approvedById  String?
+  approvedBy    User?        @relation(fields: [approvedById], references: [id])
+  date          DateTime     @default(now())
+  createdAt     DateTime     @default(now())
+
+  @@index([workOrderId])
+  @@index([workOrderItemId])
+  @@index([category])
+  @@index([approvedById])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  workOrderId   String?
+  workOrder     WorkOrder?    @relation(fields: [workOrderId], references: [id])
+  type          String
+  amount        Float
+  status        PaymentStatus @default(PENDING)
+  reference     String?
+  notes         String?
+  receivedById  String?
+  receivedBy    User?         @relation(fields: [receivedById], references: [id])
+  date          DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+
+  @@index([workOrderId])
+  @@index([status])
+  @@index([type])
+  @@index([receivedById])
+}
+
+model Payroll {
+  id              String   @id @default(cuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id])
+  month           Int
+  year            Int
+  basicSalary     Float
+  overtime        Float    @default(0)
+  allowances      Float    @default(0)
+  deductions      Float    @default(0)
+  netSalary       Float
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  slipUrl         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+}
+
+model ScheduleEvent {
+  id              String       @id @default(cuid())
+  workOrderId     String
+  workOrder       WorkOrder    @relation(fields: [workOrderId], references: [id])
+  workerId        String
+  worker          User         @relation(fields: [workerId], references: [id])
+  productionStageId String?
+  productionStage ProductionStage? @relation(fields: [productionStageId], references: [id])
+  stageName       String?
+  shiftLabel      String       @default("DAY")
+  startTime       DateTime
+  endTime         DateTime?
+  isOvertime      Boolean      @default(false)
+  notes           String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([workOrderId])
+  @@index([workerId])
+  @@index([startTime])
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  date        DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  hoursWorked Float?
+  status      String   @default("PRESENT")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@unique([employeeId, date])
+}
+
+model ProductionStage {
+  id                  String       @id @default(cuid())
+  workOrderId         String
+  workOrder           WorkOrder    @relation(fields: [workOrderId], references: [id])
+  workOrderItemId     String?
+  workOrderItem       WorkOrderItem? @relation(fields: [workOrderItemId], references: [id])
+  stageName           String
+  department          String?
+  assignedToId        String?
+  assignedTo          User?        @relation("StageAssignedTo", fields: [assignedToId], references: [id])
+  status              StageStatus  @default(PENDING)
+  startTime           DateTime?
+  endTime             DateTime?
+  duration            Int?
+  isDelayed           Boolean      @default(false)
+  delayMinutes        Int          @default(0)
+  completionPercentage Int         @default(0)
+  notes               String?
+  images              Json         @default("[]")
+  videos              Json         @default("[]")
+  qualityStatus       String?      @default("PENDING")
+  sortOrder           Int          @default(0)
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+
+  laborEntries        LaborEntry[]
+  scheduleEvents      ScheduleEvent[]
+
+  @@index([workOrderId])
+  @@index([workOrderItemId])
+  @@index([status])
+  @@index([assignedToId])
+}
+
+model LaborEntry {
+  id                String          @id @default(cuid())
+  workOrderId       String
+  workOrder         WorkOrder       @relation(fields: [workOrderId], references: [id])
+  workOrderItemId   String?
+  workOrderItem     WorkOrderItem?  @relation(fields: [workOrderItemId], references: [id])
+  productionStageId String?
+  productionStage   ProductionStage? @relation(fields: [productionStageId], references: [id])
+  workerId          String
+  worker            User            @relation(fields: [workerId], references: [id])
+  hoursWorked       Float           @default(0)
+  hourlyRate        Float           @default(0)
+  dailyRate         Float           @default(0)
+  overtimeHours     Float           @default(0)
+  overtimeRate      Float           @default(0)
+  totalCost         Float           @default(0)
+  date              DateTime        @default(now())
+  notes             String?
+  createdAt         DateTime        @default(now())
+
+  @@index([workOrderId])
+  @@index([workOrderItemId])
+  @@index([workerId])
+  @@index([productionStageId])
+}
+
+model PurchaseApproval {
+  id              String         @id @default(cuid())
+  purchaseEntryId String         @unique
+  purchaseEntry   PurchaseEntry  @relation(fields: [purchaseEntryId], references: [id])
+  workOrderId     String
+  workOrder       WorkOrder      @relation(fields: [workOrderId], references: [id])
+  requestedById   String
+  requestedBy     User           @relation("RequestedBy", fields: [requestedById], references: [id])
+  approvedById    String?
+  approvedBy      User?          @relation("ApprovedBy", fields: [approvedById], references: [id])
+  status          ApprovalStatus @default(PENDING)
+  amount          Float
+  threshold       Float          @default(0)
+  notes           String?
+  approvedAt      DateTime?
+  rejectedReason  String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([purchaseEntryId])
+  @@index([status])
+  @@index([approvedById])
+  @@index([workOrderId])
+}
+
+model MaterialRequest {
+  id            String               @id @default(cuid())
+  requestNumber String               @unique
+  title         String
+  description   String?
+  workOrderId   String?
+  workOrder     WorkOrder?           @relation(fields: [workOrderId], references: [id])
+  items         Json                 @default("[]")
+  status        MaterialRequestStatus @default(PENDING)
+  requestedById String
+  requestedBy   User                 @relation("MaterialRequestRequester", fields: [requestedById], references: [id])
+  approvedById  String?
+  approvedBy    User?                @relation("MaterialRequestApprovedBy", fields: [approvedById], references: [id])
+  rejectedReason String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([status])
+  @@index([requestedById])
+  @@index([workOrderId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  type        NotificationType
+  title       String
+  message     String?
+  link        String?
+  isRead      Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  entity      String
+  entityId    String?
+  oldValue    Json?
+  newValue    Json?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+  title       String
+  type        String
+  url         String
+  size        Int?
+  uploadedById String
+  uploadedBy  User     @relation(fields: [uploadedById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model ActivityHistory {
+  id          String   @id @default(cuid())
+  workOrderId String?
+  workOrder   WorkOrder? @relation(fields: [workOrderId], references: [id])
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  action      String
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([workOrderId])
+  @@index([userId])
+  @@index([createdAt])
+}

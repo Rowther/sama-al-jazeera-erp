@@ -1,0 +1,23 @@
+import { PrismaClient } from "@prisma/client"
+const prisma = new PrismaClient()
+async function main() {
+  await prisma.activityHistory.deleteMany()
+  await prisma.notification.deleteMany()
+  await prisma.purchaseEntryItem.deleteMany()
+  await prisma.purchaseDocument.deleteMany()
+  await prisma.purchaseEntry.deleteMany()
+  await prisma.designApproval.deleteMany()
+  await prisma.designRevision.deleteMany()
+  await prisma.design.deleteMany()
+  await prisma.document.deleteMany()
+  await prisma.expense.deleteMany()
+  await prisma.payment.deleteMany()
+  await prisma.purchaseOrder.deleteMany()
+  await prisma.workOrderInventory.deleteMany()
+  await prisma.inventoryMovement.deleteMany()
+  await prisma.workOrderTeamMember.deleteMany()
+  await prisma.workOrderMaterial.deleteMany()
+  const r = await prisma.workOrder.deleteMany()
+  console.log("Deleted " + r.count + " work orders and all related records")
+}
+main().catch(console.error).finally(() => prisma.$disconnect())

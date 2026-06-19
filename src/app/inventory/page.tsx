@@ -1,0 +1,197 @@
+"use client"
+
+import { useState } from "react"
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { api } from "@/lib/api"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Select } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { formatCurrency } from "@/lib/utils"
+import { Package, Plus, Search, AlertTriangle, TrendingUp } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useAuthStore } from "@/stores/authStore"
+import { INVENTORY_CATEGORIES } from "@/lib/constants"
+
+const categoryOptions = [{ value: "", label: "All Categories" }, ...INVENTORY_CATEGORIES.map((c) => ({ value: c, label: c }))]
+
+export default function InventoryPage() {
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const [search, setSearch] = useState("")
+  const [category, setCategory] = useState("")
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState<any>({})
+  const queryClient = useQueryClient()
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["inventory"],
+    queryFn: () => api.get<any>("/inventory"),
+  })
+
+  const addMutation = useMutation({
+    mutationFn: (data: any) => api.post("/inventory", data),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["inventory"] }); setShowAdd(false); setForm({}) },
+  })
+
+  const inventory = data?.inventory || []
+
+  const filtered = inventory.filter((i: any) => {
+    const matchSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.sku?.toLowerCase().includes(search.toLowerCase())
+    const matchCategory = !category || i.category?.name === category
+    return matchSearch && matchCategory
+  })
+
+  const totalValue = inventory.reduce((s: number, i: any) => s + i.price * i.stockQuantity, 0)
+  const lowStock = inventory.filter((i: any) => i.stockQuantity <= i.minStock)
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 rounded-lg bg-[#4F8EF7] animate-pulse" /></div>
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+          <p className="text-sm text-gray-500 mt-1">{inventory.length} items • {formatCurrency(totalValue)} total value</p>
+        </div>
+        {(user?.role === "INVENTORY_MANAGER" || user?.role === "OWNER") && (
+          <Button onClick={() => setShowAdd(!showAdd)}>
+            <Plus className="h-4 w-4 mr-1" /> Add Item
+          </Button>
+        )}
+      </div>
+
+      {lowStock.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/30">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-[#FFB648]" />
+            <p className="text-sm text-gray-700">
+              <span className="font-semibold">{lowStock.length} items</span> are below minimum stock level. Consider reordering.
+            </p>
+            <Button variant="outline" size="sm" className="ml-auto">View Low Stock</Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input placeholder="Search items..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+            </div>
+            <Select options={categoryOptions} value={category} onChange={(e) => setCategory(e.target.value)} placeholder="All Categories" className="w-48" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {showAdd && (
+        <Card>
+          <CardHeader><CardTitle>Add Inventory Item</CardTitle></CardHeader>
+          <CardContent>
+            <form onSubmit={(e) => { e.preventDefault(); addMutation.mutate(form) }} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Name *</label>
+                  <Input required onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Item name" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Category *</label>
+                  <Select required options={INVENTORY_CATEGORIES.map((c) => ({ value: c, label: c }))} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="Select category" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">SKU</label>
+                  <Input onChange={(e) => setForm({ ...form, sku: e.target.value })} placeholder="Auto-generated if empty" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Unit *</label>
+                  <Select required options={[{ value: "pcs", label: "Pieces" }, { value: "sqft", label: "Sq. Feet" }, { value: "kg", label: "Kg" }, { value: "meter", label: "Meter" }, { value: "liter", label: "Liter" }, { value: "box", label: "Box" }]} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="Select unit" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Price *</label>
+                  <Input type="number" required onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Unit price" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Stock Quantity</label>
+                  <Input type="number" onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })} placeholder="Initial stock" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Min Stock Level</label>
+                  <Input type="number" onChange={(e) => setForm({ ...form, minStock: e.target.value })} placeholder="Reorder point" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Max Stock Level</label>
+                  <Input type="number" onChange={(e) => setForm({ ...form, maxStock: e.target.value })} placeholder="Max stock" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Location</label>
+                  <Input onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Storage location" />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button variant="outline" onClick={() => setShowAdd(false)}>Cancel</Button>
+                <Button type="submit" disabled={addMutation.isPending}>Add Item</Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {filtered.map((item: any) => {
+          const isLow = item.stockQuantity <= item.minStock
+          const isOver = item.stockQuantity >= item.maxStock
+          return (
+            <Card key={item.id} className="hover:shadow-md transition-all">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <Badge variant={isLow ? "danger" : "success"}>{item.category?.name}</Badge>
+                  {isLow && <Badge variant="warning">Low Stock</Badge>}
+                </div>
+                <h3 className="text-base font-semibold text-gray-900">{item.name}</h3>
+                <p className="text-xs text-gray-400 mt-0.5">SKU: {item.sku}</p>
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Stock:</span>
+                    <span className={`font-medium ${isLow ? "text-[#F45D5D]" : "text-gray-900"}`}>
+                      {item.stockQuantity} {item.unit}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Price:</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(item.price)}/{item.unit}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Value:</span>
+                    <span className="font-medium text-gray-900">{formatCurrency(item.price * item.stockQuantity)}</span>
+                  </div>
+                  {item.location && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Location:</span>
+                      <span className="text-gray-700">{item.location}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
+                  <span className="text-xs text-gray-400">Min: {item.minStock} | Max: {item.maxStock}</span>
+                  <TrendingUp className="h-4 w-4 text-gray-300" />
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {filtered.length === 0 && (
+        <Card><CardContent className="p-12 text-center text-gray-400">No inventory items found</CardContent></Card>
+      )}
+    </div>
+  )
+}
