@@ -11,6 +11,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx tsx prisma/seed.ts",
+    "db:clear-all": "npx tsx prisma/clear-all.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },

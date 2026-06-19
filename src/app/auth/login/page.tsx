@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/authStore"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
-import { Eye, EyeOff, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react"
+import { Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 
 export default function LoginPage() {
@@ -17,14 +17,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuthStore()
   const router = useRouter()
-  const [health, setHealth] = useState<{ status: string; database: string; error?: string } | null>(null)
-
-  useEffect(() => {
-    fetch('/api/health')
-      .then(res => res.json())
-      .then(data => setHealth(data))
-      .catch(() => setHealth({ status: 'error', database: 'unknown', error: 'API unreachable' }))
-  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -58,37 +50,6 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-gray-900">Sama al jazeera ERP</h1>
           <p className="text-gray-500 mt-1">Sign in to your account</p>
         </div>
-
-        {health && health.status !== 'healthy' && (
-          <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2 text-sm">
-            <AlertTriangle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-            <div className="text-red-700">
-              <p className="font-medium">Server issue detected</p>
-              <p>Database: {health.database === 'connected' ? 'Connected' : 'Disconnected'}</p>
-              {health.error && <p className="text-red-500">{health.error}</p>}
-              <p className="text-xs mt-1 text-red-400">Check server logs for details</p>
-            </div>
-          </div>
-        )}
-
-        {health && health.status === 'healthy' && (
-          <div className="mb-4 p-3 rounded-xl bg-green-50 border border-green-200 flex items-start gap-2 text-sm">
-            <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 shrink-0" />
-            <div className="text-green-700">
-              <p className="font-medium">All systems operational</p>
-              <p>Database: Connected</p>
-            </div>
-          </div>
-        )}
-
-        {!health && (
-          <div className="mb-4 p-3 rounded-xl bg-gray-50 border border-gray-200 flex items-start gap-2 text-sm">
-            <RefreshCw className="h-4 w-4 text-gray-400 mt-0.5 shrink-0 animate-spin" />
-            <div className="text-gray-500">
-              <p>Checking server status...</p>
-            </div>
-          </div>
-        )}
 
         <Card className="shadow-xl border-0">
           <CardContent className="p-8">
