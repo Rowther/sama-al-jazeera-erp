@@ -64,6 +64,10 @@ export function getUserFromRequest(request: NextRequest): JWTPayload | null {
   }
 }
 
+export function getSessionFromRequest(request: NextRequest): string | null {
+  return request.headers.get('x-session-id')
+}
+
 export function requireAuth(
   request: NextRequest,
   allowedRoles?: string[]

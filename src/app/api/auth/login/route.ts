@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { comparePassword, generateToken, generateRefreshToken } from "@/lib/auth"
+import { comparePassword, generateToken } from "@/lib/auth"
+import crypto from "crypto"
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,16 +23,17 @@ export async function POST(request: NextRequest) {
 
     const tokenPayload = { userId: user.id, email: user.email, role: user.role }
     const token = generateToken(tokenPayload)
-    const refreshToken = generateRefreshToken(tokenPayload)
+    const sessionId = crypto.randomUUID()
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { refreshToken, lastLogin: new Date() },
+      data: { refreshToken: sessionId, lastLogin: new Date() },
     })
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar, phone: user.phone },
       token,
+      sessionId,
     })
   } catch (error) {
     console.error("Login error:", error)

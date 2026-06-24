@@ -1,14 +1,26 @@
 const API_BASE = '/api'
 
+function getToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return sessionStorage.getItem('token') || localStorage.getItem('token')
+}
+
+function getSessionId(): string | null {
+  if (typeof window === 'undefined') return null
+  return sessionStorage.getItem('sessionId')
+}
+
 export async function apiClient<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+  const token = getToken()
+  const sessionId = getSessionId()
 
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(sessionId ? { 'x-session-id': sessionId } : {}),
     ...options.headers,
   }
 
@@ -35,10 +47,14 @@ export const api = {
     apiClient<T>(url, { method: 'PATCH', body: JSON.stringify(data) }),
   delete: <T>(url: string) => apiClient<T>(url, { method: 'DELETE' }),
   upload: <T>(url: string, formData: FormData) => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const token = getToken()
+    const sessionId = getSessionId()
+    const headers: Record<string, string> = {}
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    if (sessionId) headers['x-session-id'] = sessionId
     return fetch(`${API_BASE}${url}`, {
       method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers,
       body: formData,
     }).then(res => res.json()) as Promise<T>
   },
