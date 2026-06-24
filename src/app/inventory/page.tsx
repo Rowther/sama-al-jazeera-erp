@@ -21,6 +21,7 @@ export default function InventoryPage() {
   const { user } = useAuthStore()
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("")
+  const [lowStockOnly, setLowStockOnly] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<any>({})
   const queryClient = useQueryClient()
@@ -40,7 +41,8 @@ export default function InventoryPage() {
   const filtered = inventory.filter((i: any) => {
     const matchSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.sku?.toLowerCase().includes(search.toLowerCase())
     const matchCategory = !category || i.category?.name === category
-    return matchSearch && matchCategory
+    const matchLow = !lowStockOnly || i.stockQuantity <= i.minStock
+    return matchSearch && matchCategory && matchLow
   })
 
   const totalValue = inventory.reduce((s: number, i: any) => s + i.price * i.stockQuantity, 0)
@@ -64,14 +66,25 @@ export default function InventoryPage() {
         )}
       </div>
 
-      {lowStock.length > 0 && (
+      {lowStock.length > 0 && !lowStockOnly && (
         <Card className="border-amber-200 bg-amber-50/30">
           <CardContent className="p-4 flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-[#FFB648]" />
             <p className="text-sm text-gray-700">
               <span className="font-semibold">{lowStock.length} items</span> are below minimum stock level. Consider reordering.
             </p>
-            <Button variant="outline" size="sm" className="ml-auto">View Low Stock</Button>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => { setLowStockOnly(true); setSearch(""); setCategory("") }}>View Low Stock</Button>
+          </CardContent>
+        </Card>
+      )}
+      {lowStockOnly && (
+        <Card className="border-[#4F8EF7] bg-blue-50/30">
+          <CardContent className="p-4 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-[#4F8EF7]" />
+            <p className="text-sm text-gray-700">
+              Showing <span className="font-semibold">{filtered.length} low stock items</span>.
+            </p>
+            <Button variant="outline" size="sm" className="ml-auto" onClick={() => setLowStockOnly(false)}>Show All Items</Button>
           </CardContent>
         </Card>
       )}
@@ -81,9 +94,9 @@ export default function InventoryPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input placeholder="Search items..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Search items..." value={search} onChange={(e) => { setSearch(e.target.value); setLowStockOnly(false) }} className="pl-9" />
             </div>
-            <Select options={categoryOptions} value={category} onChange={(e) => setCategory(e.target.value)} placeholder="All Categories" className="w-48" />
+            <Select options={categoryOptions} value={category} onChange={(e) => { setCategory(e.target.value); setLowStockOnly(false) }} placeholder="All Categories" className="w-48" />
           </div>
         </CardContent>
       </Card>
