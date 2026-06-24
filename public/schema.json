@@ -1,0 +1,43 @@
+{
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "DataStream",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web Browser",
+    "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "AED"
+    },
+    "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150"
+    },
+    "description": "DataStream is a comprehensive multi-tenant ERP and CRM platform designed for businesses in the UAE. Manage work orders, clients, employees, and streamline your business operations with our cloud-based solution.",
+    "url": "https://www.datastream.ae",
+    "image": "https://www.datastream.ae/logo512.png",
+    "author": {
+        "@type": "Organization",
+        "name": "DataStream"
+    },
+    "publisher": {
+        "@type": "Organization",
+        "name": "DataStream",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://www.datastream.ae/logo512.png"
+        }
+    },
+    "featureList": [
+        "Work Order Management",
+        "Client Relationship Management",
+        "Employee Management",
+        "Multi-Tenant Architecture",
+        "Real-time Notifications",
+        "Mobile Responsive",
+        "Cloud-based Solution",
+        "Customizable Workflows"
+    ],
+    "screenshot": "https://www.datastream.ae/logo512.png"
+}
