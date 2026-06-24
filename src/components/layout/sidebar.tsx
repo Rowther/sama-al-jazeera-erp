@@ -61,9 +61,7 @@ export function Sidebar() {
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className={cn("flex items-center gap-3", !sidebarOpen && "lg:hidden")}>
-            <div className="h-8 w-8 rounded-lg bg-[#4F8EF7] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">FE</span>
-            </div>
+            <img src="/logo192.png" alt="Logo" className="h-8 w-8 rounded-lg object-contain" />
             <span className="font-semibold text-gray-900">Sama al jazeera</span>
           </div>
           <button onClick={toggleSidebar} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 lg:block hidden">

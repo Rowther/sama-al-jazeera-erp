@@ -4,6 +4,13 @@
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
 
+  <!--
+    ============================================
+    Sama Al Jazeera ERP - Business Operating System
+    Built by Mohammed Tariq
+    ============================================
+  -->
+
   <!-- Homepage -->
   <url>
     <loc>https://www.datastream.ae/</loc>
