@@ -7,22 +7,26 @@
   <!--
     ============================================
     Sama Al Jazeera ERP - Business Operating System
-    Built by Mohammed Tariq
+    ============================================
+    Application built and developed by:
+    Mohammed Tariq
+    Full Stack Developer
+    Bangalore, India
     ============================================
   -->
 
-  <!-- Homepage -->
+  <!-- Homepage / Dashboard -->
   <url>
-    <loc>https://www.datastream.ae/</loc>
-    <lastmod>2025-11-26</lastmod>
+    <loc>https://datastream.ae/</loc>
+    <lastmod>2026-06-25</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
   <!-- Login Page -->
   <url>
-    <loc>https://www.datastream.ae/#/login</loc>
-    <lastmod>2025-11-26</lastmod>
+    <loc>https://datastream.ae/auth/login</loc>
+    <lastmod>2026-06-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
