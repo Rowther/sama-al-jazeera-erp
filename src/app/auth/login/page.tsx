@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Eye, EyeOff, AlertTriangle } from "lucide-react"
-import Link from "next/link"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")

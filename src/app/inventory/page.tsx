@@ -22,13 +22,20 @@ export default function InventoryPage() {
   const [search, setSearch] = useState("")
   const [category, setCategory] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState(false)
+  const [page, setPage] = useState(1)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState<any>({})
   const queryClient = useQueryClient()
 
+  const queryParams = new URLSearchParams()
+  queryParams.set("page", String(page))
+  if (search) queryParams.set("search", search)
+  if (category) queryParams.set("category", category)
+  if (lowStockOnly) queryParams.set("lowStock", "true")
+
   const { data, isLoading } = useQuery({
-    queryKey: ["inventory"],
-    queryFn: () => api.get<any>("/inventory"),
+    queryKey: ["inventory", search, category, lowStockOnly, page],
+    queryFn: () => api.get<any>(`/inventory?${queryParams.toString()}`),
   })
 
   const addMutation = useMutation({
@@ -37,16 +44,17 @@ export default function InventoryPage() {
   })
 
   const inventory = data?.inventory || []
+  const pagination = data?.pagination
 
-  const filtered = inventory.filter((i: any) => {
-    const matchSearch = !search || i.name.toLowerCase().includes(search.toLowerCase()) || i.sku?.toLowerCase().includes(search.toLowerCase())
-    const matchCategory = !category || i.category?.name === category
-    const matchLow = !lowStockOnly || i.stockQuantity <= i.minStock
-    return matchSearch && matchCategory && matchLow
+  const allItemsQuery = useQuery({
+    queryKey: ["inventory-all"],
+    queryFn: () => api.get<any>("/inventory?limit=200"),
+    staleTime: 60000,
   })
 
-  const totalValue = inventory.reduce((s: number, i: any) => s + i.price * i.stockQuantity, 0)
-  const lowStock = inventory.filter((i: any) => i.stockQuantity <= i.minStock)
+  const allItems = allItemsQuery.data?.inventory || []
+  const totalValue = allItems.reduce((s: number, i: any) => s + i.price * i.stockQuantity, 0)
+  const lowStock = allItems.filter((i: any) => i.stockQuantity <= i.minStock)
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 rounded-lg bg-[#4F8EF7] animate-pulse" /></div>
@@ -57,7 +65,7 @@ export default function InventoryPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-500 mt-1">{inventory.length} items • {formatCurrency(totalValue)} total value</p>
+          <p className="text-sm text-gray-500 mt-1">{pagination?.total || inventory.length} items • {formatCurrency(totalValue)} total value</p>
         </div>
         {(user?.role === "INVENTORY_MANAGER" || user?.role === "OWNER") && (
           <Button onClick={() => setShowAdd(!showAdd)}>
@@ -82,7 +90,7 @@ export default function InventoryPage() {
           <CardContent className="p-4 flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-[#4F8EF7]" />
             <p className="text-sm text-gray-700">
-              Showing <span className="font-semibold">{filtered.length} low stock items</span>.
+              Showing <span className="font-semibold">{inventory.length} low stock items</span>.
             </p>
             <Button variant="outline" size="sm" className="ml-auto" onClick={() => setLowStockOnly(false)}>Show All Items</Button>
           </CardContent>
@@ -94,9 +102,9 @@ export default function InventoryPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <Input placeholder="Search items..." value={search} onChange={(e) => { setSearch(e.target.value); setLowStockOnly(false) }} className="pl-9" />
+              <Input placeholder="Search items..." value={search} onChange={(e) => { setSearch(e.target.value); setLowStockOnly(false); setPage(1) }} className="pl-9" />
             </div>
-            <Select options={categoryOptions} value={category} onChange={(e) => { setCategory(e.target.value); setLowStockOnly(false) }} placeholder="All Categories" className="w-48" />
+            <Select options={categoryOptions} value={category} onChange={(e) => { setCategory(e.target.value); setLowStockOnly(false); setPage(1) }} placeholder="All Categories" className="w-48" />
           </div>
         </CardContent>
       </Card>
@@ -158,7 +166,7 @@ export default function InventoryPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map((item: any) => {
+        {inventory.map((item: any) => {
           const isLow = item.stockQuantity <= item.minStock
           const isOver = item.stockQuantity >= item.maxStock
           return (
@@ -202,7 +210,21 @@ export default function InventoryPage() {
         })}
       </div>
 
-      {filtered.length === 0 && (
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2">
+          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+            Previous
+          </Button>
+          <span className="text-sm text-gray-500">
+            Page {pagination.page} of {pagination.totalPages} ({pagination.total} items)
+          </span>
+          <Button variant="outline" size="sm" disabled={page >= pagination.totalPages} onClick={() => setPage((p) => p + 1)}>
+            Next
+          </Button>
+        </div>
+      )}
+
+      {inventory.length === 0 && (
         <Card><CardContent className="p-12 text-center text-gray-400">No inventory items found</CardContent></Card>
       )}
     </div>

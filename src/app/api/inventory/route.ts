@@ -1,26 +1,64 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
 import { getUserFromRequest } from "@/lib/auth"
+import { Prisma } from "@prisma/client"
 
 export async function GET(request: NextRequest) {
   const user = getUserFromRequest(request)
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
-  const lowStock = searchParams.get("lowStock")
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1"))
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")))
+  const search = searchParams.get("search") || ""
+  const category = searchParams.get("category") || ""
+  const lowStock = searchParams.get("lowStock") === "true"
 
-  const items = await prisma.inventoryItem.findMany({
-    include: { category: true, supplier: true },
-    orderBy: { name: "asc" },
-    take: 200,
-  })
+  const where: Prisma.InventoryItemWhereInput = {}
 
-  const result = lowStock === "true"
-    ? items.filter(i => i.stockQuantity <= i.minStock)
-    : items
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { sku: { contains: search, mode: "insensitive" } },
+    ]
+  }
 
-  return NextResponse.json({ inventory: result }, {
-    headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
+  if (category) {
+    where.category = { name: category }
+  }
+
+  const skip = (page - 1) * limit
+
+  let items: any[]
+  let total: number
+
+  if (lowStock) {
+    const allMatching = await prisma.inventoryItem.findMany({
+      where,
+      include: { category: true, supplier: { select: { id: true, name: true } } },
+      orderBy: { name: "asc" },
+    })
+    const filtered = allMatching.filter((i) => i.stockQuantity <= i.minStock)
+    total = filtered.length
+    items = filtered.slice(skip, skip + limit)
+  } else {
+    ;[items, total] = await Promise.all([
+      prisma.inventoryItem.findMany({
+        where,
+        include: { category: true, supplier: { select: { id: true, name: true } } },
+        orderBy: { name: "asc" },
+        skip,
+        take: limit,
+      }),
+      prisma.inventoryItem.count({ where }),
+    ])
+  }
+
+  return NextResponse.json({
+    inventory: items,
+    pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+  }, {
+    headers: { "Cache-Control": "public, max-age=30, stale-while-revalidate=120" },
   })
 }
 

@@ -146,6 +146,8 @@ model User {
   isActive      Boolean  @default(true)
   refreshToken  String?
   lastLogin     DateTime?
+  loginAttempts Int      @default(0)
+  lockoutUntil  DateTime?
   hourlyRate    Float    @default(0)
   dailyRate     Float    @default(0)
   overtimeRate  Float    @default(0)
