@@ -21,6 +21,7 @@ export default function AccountingPage() {
   const { data: analytics } = useQuery({ queryKey: ["analytics"], queryFn: () => api.get<any>("/analytics") })
   const { data: expensesData } = useQuery({ queryKey: ["expenses"], queryFn: () => api.get<any>("/expenses") })
   const { data: paymentsData } = useQuery({ queryKey: ["payments"], queryFn: () => api.get<any>("/payments") })
+  const { data: cashFlowData } = useQuery({ queryKey: ["cash-flow"], queryFn: () => api.get<any>("/cash-flow?months=12") })
 
   const kpis = analytics?.kpis || {}
   const expenses = expensesData?.expenses || []
@@ -33,14 +34,11 @@ export default function AccountingPage() {
 
   const categoryData = Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }))
 
-  const monthlyData = [
-    { name: "Jan", revenue: 45000, expenses: 32000 },
-    { name: "Feb", revenue: 52000, expenses: 38000 },
-    { name: "Mar", revenue: 48000, expenses: 35000 },
-    { name: "Apr", revenue: 61000, expenses: 42000 },
-    { name: "May", revenue: 55000, expenses: 39000 },
-    { name: "Jun", revenue: 67000, expenses: 45000 },
-  ]
+  const monthlyData = (cashFlowData?.monthlyCashFlow || []).map((m: any) => ({
+    name: m.month ? m.month.split("-")[1] : "",
+    revenue: m.income || 0,
+    expenses: m.expenses + m.payroll || 0,
+  }))
 
   return (
     <div className="space-y-6 animate-fade-in">
