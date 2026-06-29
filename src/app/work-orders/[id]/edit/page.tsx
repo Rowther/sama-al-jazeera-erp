@@ -17,7 +17,7 @@ export default function EditWorkOrderPage() {
   const router = useRouter()
   const params = useParams()
   const [form, setForm] = useState<any>(null)
-  const [items, setItems] = useState<{ name: string; quantity: number; dimensions: string; notes: string }[]>([])
+  const [items, setItems] = useState<{ name: string; quantity: number; dimensions: string; notes: string; description: string }[]>([])
   const [teamMembers, setTeamMembers] = useState<{ userId: string; role: string }[]>([])
   const [error, setError] = useState("")
   const [loaded, setLoaded] = useState(false)
@@ -84,7 +84,7 @@ export default function EditWorkOrderPage() {
   }
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, dimensions: "", notes: "" }])
+    setItems([...items, { name: "", quantity: 1, dimensions: "", notes: "", description: "" }])
   }
 
   const updateItem = (index: number, key: string, value: string | number) => {
@@ -227,9 +227,18 @@ export default function EditWorkOrderPage() {
           <CardContent className="space-y-3">
             {items.length === 0 && <p className="text-sm text-gray-400 text-center py-4">No items added yet</p>}
             {items.map((item, i) => (
-              <div key={i} className="flex gap-2 items-start p-3 rounded-lg bg-gray-50">
+              <div key={i} className={`flex gap-2 items-start p-3 rounded-lg border-2 ${i % 2 === 0 ? "bg-gray-50 border-gray-300" : "bg-white border-gray-400"}`}>
                 <div className="flex-1 space-y-2">
-                  <Input value={item.name} onChange={(e) => updateItem(i, "name", e.target.value)} placeholder="Item name" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Item #{i + 1}</span>
+                    <Input value={item.name} onChange={(e) => updateItem(i, "name", e.target.value)} placeholder="Item name" className="flex-1" />
+                  </div>
+                  <Textarea
+                    value={item.description || ""}
+                    onChange={(e) => updateItem(i, "description", e.target.value)}
+                    placeholder="Item description..."
+                    rows={2}
+                  />
                   <div className="flex gap-2">
                     <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(i, "quantity", parseInt(e.target.value) || 1)} placeholder="Qty" className="w-20" />
                     <Input value={item.dimensions} onChange={(e) => updateItem(i, "dimensions", e.target.value)} placeholder="Dimensions" className="flex-1" />

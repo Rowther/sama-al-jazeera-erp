@@ -110,7 +110,7 @@ export default function WorkOrdersPage() {
                     </div>
                   </div>
                 </div>
-                {(user?.role === "OWNER" || user?.role === "MANAGER") && (
+                {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900">{formatCurrency(wo.totalCost)}</p>
                     {wo.estimatedBudget && <p className="text-xs text-gray-400">Budget: {formatCurrency(wo.estimatedBudget)}</p>}

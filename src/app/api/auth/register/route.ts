@@ -21,6 +21,16 @@ export async function POST(request: NextRequest) {
       data: { email, password: hashedPassword, name, role: role || "DESIGNER" },
     })
 
+    // Automatically create Employee record for the user
+    const count = await prisma.employee.count()
+    await prisma.employee.create({
+      data: {
+        userId: user.id,
+        employeeId: `EMP-${String(count + 1).padStart(3, "0")}`,
+        phone: user.phone || null,
+      },
+    })
+
     const tokenPayload = { userId: user.id, email: user.email, role: user.role }
     const token = generateToken(tokenPayload)
     const sessionId = crypto.randomUUID()

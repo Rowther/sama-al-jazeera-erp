@@ -76,6 +76,9 @@ export function ItemProgress({ items }: ItemProgressProps) {
                           {item.name}
                           <span className="text-xs text-gray-400 ml-2">×{item.quantity}</span>
                         </p>
+                        {(item as any).description && (
+                          <p className="text-xs text-gray-500 truncate mt-0.5">{(item as any).description}</p>
+                        )}
                         <div className="flex items-center gap-2 flex-shrink-0 ml-2">
                           <Badge variant={colors.badge}>{item.status.replace(/_/g, " ")}</Badge>
                           {item.isDelayed && (

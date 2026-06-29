@@ -370,7 +370,7 @@ export default function WorkOrderDetailPage() {
       )}
 
       {/* Financial Overview */}
-      {(user?.role === "OWNER" || user?.role === "MANAGER") && (
+      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
         <Card className="border-t-4 border-t-[#4F8EF7]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -611,6 +611,9 @@ export default function WorkOrderDetailPage() {
                               <span className="text-sm font-medium text-gray-900">{item.name}</span>
                               <span className="text-xs text-gray-400">×{item.quantity}</span>
                             </div>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
+                            )}
                           </div>
                           <div className="w-24">
                             <Progress value={item.progress} className="h-1.5" />
@@ -982,14 +985,16 @@ export default function WorkOrderDetailPage() {
         </Card>
         )}
 
-        <InstallmentPayments
-          workOrderId={wo.id}
-          installments={wo.installments || []}
-          advanceReceived={wo.advanceReceived || 0}
-          finalPrice={wo.finalPrice}
-          remainingAmount={wo.remainingAmount}
-          currentStatus={wo.status}
-        />
+        {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
+          <InstallmentPayments
+            workOrderId={wo.id}
+            installments={wo.installments || []}
+            advanceReceived={wo.advanceReceived || 0}
+            finalPrice={wo.finalPrice}
+            remainingAmount={wo.remainingAmount}
+            currentStatus={wo.status}
+          />
+        )}
       </div>
 
       <WorkerAssignment

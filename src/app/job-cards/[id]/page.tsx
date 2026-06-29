@@ -80,6 +80,7 @@ export default function EnhancedJobCardPage() {
   })
 
   const canManage = user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "PRODUCTION_MANAGER"
+  const canViewFinance = user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT"
 
   if (isLoading) {
     return (
@@ -205,10 +206,12 @@ export default function EnhancedJobCardPage() {
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Work Order Ref</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{wo?.workOrderId}</p>
               </div>
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-[10px] text-gray-400 uppercase tracking-wider">Estimate / Budget</p>
-                <p className="text-sm font-semibold text-[#4F8EF7] mt-1">{wo?.estimatedBudget ? formatCurrency(wo.estimatedBudget) : "-"}</p>
-              </div>
+              {canViewFinance && (
+                <div className="p-3 rounded-xl bg-gray-50">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider">Estimate / Budget</p>
+                  <p className="text-sm font-semibold text-[#4F8EF7] mt-1">{wo?.estimatedBudget ? formatCurrency(wo.estimatedBudget) : "-"}</p>
+                </div>
+              )}
               <div className="p-3 rounded-xl bg-gray-50">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Award Date</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{wo?.createdAt ? formatDate(wo.createdAt) : "-"}</p>
@@ -329,7 +332,7 @@ export default function EnhancedJobCardPage() {
                       <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Availability</th>
                       <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Source Type</th>
                       <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Supplier</th>
-                      <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Cost</th>
+                      {canViewFinance && <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Cost</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -362,9 +365,11 @@ export default function EnhancedJobCardPage() {
                           )}
                         </td>
                         <td className="py-3 px-3 text-gray-600">{mat.supplierPreference || "-"}</td>
-                        <td className="py-3 px-3 font-medium text-gray-900">
-                          {mat.actualCost > 0 ? formatCurrency(mat.actualCost) : mat.estimatedCost > 0 ? formatCurrency(mat.estimatedCost) : "-"}
-                        </td>
+                        {canViewFinance && (
+                          <td className="py-3 px-3 font-medium text-gray-900">
+                            {mat.actualCost > 0 ? formatCurrency(mat.actualCost) : mat.estimatedCost > 0 ? formatCurrency(mat.estimatedCost) : "-"}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>

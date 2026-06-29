@@ -101,6 +101,14 @@ export function ItemDetail({ item, workOrderId, labourUsers, onClose }: ItemDeta
           </div>
         )}
 
+        {/* Description */}
+        {(item as any).description && (
+          <div className="p-3 rounded-xl bg-gray-50">
+            <p className="text-xs text-gray-500 mb-1">Description</p>
+            <p className="text-sm text-gray-700">{(item as any).description}</p>
+          </div>
+        )}
+
         {/* Dimensions & Notes */}
         {(item.dimensions || item.notes) && (
           <div className="grid grid-cols-2 gap-3">
