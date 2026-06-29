@@ -64,6 +64,13 @@ export default function WorkOrderDetailPage() {
     staleTime: 15000,
   })
 
+  const { data: inventoryData } = useQuery({
+    queryKey: ["inventory-all"],
+    queryFn: () => api.get<any>("/inventory?limit=200"),
+    staleTime: 60000,
+  })
+  const inventoryItems = inventoryData?.inventory || []
+
   const { data: purchaseEntriesData } = useQuery({
     queryKey: ["purchase-entries", params.id],
     queryFn: () => api.get<any>(`/purchase-entries?workOrderId=${params.id}`),
@@ -731,6 +738,34 @@ export default function WorkOrderDetailPage() {
             {showAddMaterial && (
               <div className="mb-4 p-4 rounded-xl bg-[#EEF4FF] border border-[#4F8EF7]/20 space-y-4">
                 <p className="text-sm font-semibold text-gray-700">Add Required Materials</p>
+                {inventoryItems.length > 0 && (
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Pick from Inventory (auto-fills details)</label>
+                    <Select
+                      options={[
+                        { value: "", label: "Manual entry..." },
+                        ...inventoryItems.map((i: any) => ({
+                          value: i.id,
+                          label: `${i.name} (${i.sku}) - ${i.category?.name} - ${formatCurrency(i.price)}/${i.unit}`,
+                        })),
+                      ]}
+                      value=""
+                      onChange={(e) => {
+                        const item = inventoryItems.find((i: any) => i.id === e.target.value)
+                        if (item) {
+                          setNewMaterial({
+                            ...newMaterial,
+                            materialName: item.name,
+                            category: item.category?.name || "",
+                            unit: item.unit || "pcs",
+                            estimatedCost: String(item.price || ""),
+                          })
+                        }
+                      }}
+                      placeholder="Select from inventory..."
+                    />
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="space-y-1">
                     <label className="text-xs text-gray-500">Material Name *</label>

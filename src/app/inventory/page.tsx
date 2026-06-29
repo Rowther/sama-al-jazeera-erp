@@ -29,13 +29,15 @@ export default function InventoryPage() {
 
   const queryParams = new URLSearchParams()
   queryParams.set("page", String(page))
-  if (search) queryParams.set("search", search)
+  const trimmedSearch = search.trim()
+  if (trimmedSearch) queryParams.set("search", trimmedSearch)
   if (category) queryParams.set("category", category)
   if (lowStockOnly) queryParams.set("lowStock", "true")
 
   const { data, isLoading } = useQuery({
-    queryKey: ["inventory", search, category, lowStockOnly, page],
+    queryKey: ["inventory", trimmedSearch, category, lowStockOnly, page],
     queryFn: () => api.get<any>(`/inventory?${queryParams.toString()}`),
+    staleTime: 0,
   })
 
   const addMutation = useMutation({

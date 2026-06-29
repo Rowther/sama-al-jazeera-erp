@@ -151,6 +151,34 @@ export default function InventoryManagerDashboard() {
           {selectedWoId && (
             <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-4">
               <p className="text-sm font-semibold text-gray-700">Material Details</p>
+              {inventory.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs text-gray-500">Pick from Inventory (auto-fills details)</label>
+                  <Select
+                    options={[
+                      { value: "", label: "Manual entry..." },
+                      ...inventory.map((i: any) => ({
+                        value: i.id,
+                        label: `${i.name} (${i.sku}) - ${i.category?.name} - ${formatCurrency(i.price)}/${i.unit}`,
+                      })),
+                    ]}
+                    value=""
+                    onChange={(e) => {
+                      const item = inventory.find((i: any) => i.id === e.target.value)
+                      if (item) {
+                        setMaterialForm({
+                          ...materialForm,
+                          materialName: item.name,
+                          category: item.category?.name || "",
+                          unit: item.unit || "pcs",
+                          estimatedCost: String(item.price || ""),
+                        })
+                      }
+                    }}
+                    placeholder="Select from inventory..."
+                  />
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs text-gray-500">Material Name *</label>
