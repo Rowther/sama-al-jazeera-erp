@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, useRef, useMemo } from "react"
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
+import { useDebounce } from "@/hooks"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -63,13 +64,6 @@ export default function WorkOrderDetailPage() {
     queryFn: () => api.get<any>(`/work-orders/${params.id}/materials`),
     staleTime: 15000,
   })
-
-  const { data: inventoryData } = useQuery({
-    queryKey: ["inventory-all"],
-    queryFn: () => api.get<any>("/inventory?limit=200"),
-    staleTime: 60000,
-  })
-  const inventoryItems = inventoryData?.inventory || []
 
   const { data: purchaseEntriesData } = useQuery({
     queryKey: ["purchase-entries", params.id],
@@ -165,13 +159,15 @@ export default function WorkOrderDetailPage() {
     estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "",
   })
   const [materialItemId, setMaterialItemId] = useState("")
-  const filteredInventory = useMemo(() => {
-    if (!newMaterial.materialName.trim()) return []
-    const q = newMaterial.materialName.toLowerCase()
-    return inventoryItems.filter((i: any) =>
-      i.name.toLowerCase().includes(q) || (i.sku && i.sku.toLowerCase().includes(q))
-    )
-  }, [newMaterial.materialName, inventoryItems])
+  const debouncedMaterialSearch = useDebounce(newMaterial.materialName, 300)
+  const { data: materialSearchData, isFetching: materialSearching } = useQuery({
+    queryKey: ["inventory-search", debouncedMaterialSearch],
+    queryFn: () => api.get<any>(`/inventory?search=${encodeURIComponent(debouncedMaterialSearch)}&limit=10`),
+    staleTime: 0,
+    enabled: debouncedMaterialSearch.length > 0,
+    placeholderData: keepPreviousData,
+  })
+  const searchResults = materialSearchData?.inventory || []
 
   const [editingMaterial, setEditingMaterial] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<any>({})
@@ -749,40 +745,49 @@ export default function WorkOrderDetailPage() {
                   <div className="space-y-1 relative">
                     <label className="text-xs text-gray-500">Material Name *</label>
                     <Input value={newMaterial.materialName} onChange={(e) => setNewMaterial({ ...newMaterial, materialName: e.target.value })} placeholder="e.g., MDF Board" />
-                    {newMaterial.materialName && filteredInventory.length > 0 && (
-                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                        {filteredInventory.slice(0, 10).map((item: any) => (
-                          <button
-                            key={item.id}
-                            type="button"
-                            className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
-                            onClick={() => {
-                              setNewMaterial({
-                                ...newMaterial,
-                                materialName: item.name,
-                                category: item.category?.name || "",
-                                unit: item.unit || "pcs",
-                                estimatedCost: String(item.price || ""),
-                              })
-                            }}
-                          >
-                            <div>
-                              <span className="font-medium text-gray-900">{item.name}</span>
-                              {item.category?.name && (
-                                <span className="text-gray-400 ml-2 text-xs">({item.category.name})</span>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                              Stock: {item.stockQuantity} {item.unit}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {newMaterial.materialName && filteredInventory.length === 0 && inventoryItems.length > 0 && (
-                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
-                        No matching items in inventory
-                      </div>
+                    {debouncedMaterialSearch && (
+                      <>
+                        {materialSearching && searchResults.length === 0 && (
+                          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
+                            Searching...
+                          </div>
+                        )}
+                        {!materialSearching && searchResults.length > 0 && (
+                          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                            {searchResults.map((item: any) => (
+                              <button
+                                key={item.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
+                                onClick={() => {
+                                  setNewMaterial({
+                                    ...newMaterial,
+                                    materialName: item.name,
+                                    category: item.category?.name || "",
+                                    unit: item.unit || "pcs",
+                                    estimatedCost: String(item.price || ""),
+                                  })
+                                }}
+                              >
+                                <div>
+                                  <span className="font-medium text-gray-900">{item.name}</span>
+                                  {item.category?.name && (
+                                    <span className="text-gray-400 ml-2 text-xs">({item.category.name})</span>
+                                  )}
+                                </div>
+                                <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                                  Stock: {item.stockQuantity} {item.unit}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        {!materialSearching && searchResults.length === 0 && (
+                          <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
+                            No matching items in inventory
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                   <div className="space-y-1">
