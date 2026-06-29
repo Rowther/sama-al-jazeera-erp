@@ -13,6 +13,7 @@ import { Package, Plus, Search, AlertTriangle, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/authStore"
 import { useDebounce } from "@/hooks"
+import { keepPreviousData } from "@tanstack/react-query"
 import { INVENTORY_CATEGORIES } from "@/lib/constants"
 
 const categoryOptions = [{ value: "", label: "All Categories" }, ...INVENTORY_CATEGORIES.map((c) => ({ value: c, label: c }))]
@@ -36,11 +37,14 @@ export default function InventoryPage() {
   if (category) queryParams.set("category", category)
   if (lowStockOnly) queryParams.set("lowStock", "true")
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ["inventory", trimmedSearch, category, lowStockOnly, page],
     queryFn: () => api.get<any>(`/inventory?${queryParams.toString()}`),
     staleTime: 0,
+    placeholderData: keepPreviousData,
   })
+
+  const showLoading = isLoading && !data
 
   const addMutation = useMutation({
     mutationFn: (data: any) => api.post("/inventory", data),
@@ -60,7 +64,7 @@ export default function InventoryPage() {
   const totalValue = allItems.reduce((s: number, i: any) => s + i.price * i.stockQuantity, 0)
   const lowStock = allItems.filter((i: any) => i.stockQuantity <= i.minStock)
 
-  if (isLoading) {
+  if (showLoading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 rounded-lg bg-[#4F8EF7] animate-pulse" /></div>
   }
 

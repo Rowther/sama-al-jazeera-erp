@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     await writeFile(path.join(publicDir, uniqueName), buffer)
     await writeFile(path.join(dataDir, uniqueName), buffer)
 
-    const url = `/uploads/designs/${uniqueName}`
+    const url = `/api/uploads/designs/${uniqueName}`
 
     return NextResponse.json({ url, name: file.name })
   } catch (error) {

@@ -165,14 +165,13 @@ export default function WorkOrderDetailPage() {
     estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "",
   })
   const [materialItemId, setMaterialItemId] = useState("")
-  const [inventorySearch, setInventorySearch] = useState("")
   const filteredInventory = useMemo(() => {
-    if (!inventorySearch.trim()) return []
-    const q = inventorySearch.toLowerCase()
+    if (!newMaterial.materialName.trim()) return []
+    const q = newMaterial.materialName.toLowerCase()
     return inventoryItems.filter((i: any) =>
       i.name.toLowerCase().includes(q) || (i.sku && i.sku.toLowerCase().includes(q))
     )
-  }, [inventorySearch, inventoryItems])
+  }, [newMaterial.materialName, inventoryItems])
 
   const [editingMaterial, setEditingMaterial] = useState<string | null>(null)
   const [editForm, setEditForm] = useState<any>({})
@@ -746,58 +745,45 @@ export default function WorkOrderDetailPage() {
             {showAddMaterial && (
               <div className="mb-4 p-4 rounded-xl bg-[#EEF4FF] border border-[#4F8EF7]/20 space-y-4">
                 <p className="text-sm font-semibold text-gray-700">Add Required Materials</p>
-                <div className="relative">
-                  <label className="text-xs text-gray-500">Search Inventory (auto-fills details)</label>
-                  <div className="relative mt-1">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input
-                      placeholder="Type material name..."
-                      value={inventorySearch}
-                      onChange={(e) => setInventorySearch(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                  {inventorySearch && filteredInventory.length > 0 && (
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                      {filteredInventory.slice(0, 10).map((item: any) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
-                          onClick={() => {
-                            setNewMaterial({
-                              ...newMaterial,
-                              materialName: item.name,
-                              category: item.category?.name || "",
-                              unit: item.unit || "pcs",
-                              estimatedCost: String(item.price || ""),
-                            })
-                            setInventorySearch("")
-                          }}
-                        >
-                          <div>
-                            <span className="font-medium text-gray-900">{item.name}</span>
-                            {item.category?.name && (
-                              <span className="text-gray-400 ml-2 text-xs">({item.category.name})</span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                            Stock: {item.stockQuantity} {item.unit}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {inventorySearch && filteredInventory.length === 0 && (
-                    <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
-                      No matching items found
-                    </div>
-                  )}
-                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="space-y-1">
+                  <div className="space-y-1 relative">
                     <label className="text-xs text-gray-500">Material Name *</label>
                     <Input value={newMaterial.materialName} onChange={(e) => setNewMaterial({ ...newMaterial, materialName: e.target.value })} placeholder="e.g., MDF Board" />
+                    {newMaterial.materialName && filteredInventory.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {filteredInventory.slice(0, 10).map((item: any) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
+                            onClick={() => {
+                              setNewMaterial({
+                                ...newMaterial,
+                                materialName: item.name,
+                                category: item.category?.name || "",
+                                unit: item.unit || "pcs",
+                                estimatedCost: String(item.price || ""),
+                              })
+                            }}
+                          >
+                            <div>
+                              <span className="font-medium text-gray-900">{item.name}</span>
+                              {item.category?.name && (
+                                <span className="text-gray-400 ml-2 text-xs">({item.category.name})</span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                              Stock: {item.stockQuantity} {item.unit}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {newMaterial.materialName && filteredInventory.length === 0 && inventoryItems.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
+                        No matching items in inventory
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-500">Category</label>
