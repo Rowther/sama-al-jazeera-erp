@@ -91,14 +91,35 @@ export default function OwnerCommandCenter() {
   const cashFlow = cashFlowData || { monthlyCashFlow: [], summary: {}, pendingPayments: [], pendingExpenses: [], expectedRevenue: [] }
   const prodStats = prodAnalytics?.summary || {}
 
-  const topExpensiveWOs = useMemo(() =>
-    [...allMaterials.reduce((acc: any, m: any) => {
-      const existing = acc.get(m.workOrderId)
-      if (existing) { existing.actualCost += m.actualCost; existing.estimatedCost += m.estimatedCost }
-      else acc.set(m.workOrderId, { workOrderId: m.workOrderId, actualCost: m.actualCost, estimatedCost: m.estimatedCost, workOrder: m.workOrder })
-      return acc
-    }, new Map()).values()].sort((a: any, b: any) => b.actualCost - a.actualCost).slice(0, 5),
-  [allMaterials])
+  const workOrderLookup = useMemo(() => {
+    const map = new Map<string, any>()
+    for (const wo of (workOrdersData?.workOrders || [])) {
+      map.set(wo.id, wo)
+    }
+    return map
+  }, [workOrdersData])
+
+  const topExpensiveWOs = useMemo(() => {
+    const byWO = new Map<string, { workOrderId: string; actualCost: number; estimatedCost: number; customerName: string }>()
+    for (const m of allMaterials) {
+      const woId = m.workOrderId || m.workOrder?.id
+      if (!woId) continue
+      const existing = byWO.get(woId)
+      const woRecord = workOrderLookup.get(woId)
+      if (existing) {
+        existing.actualCost += m.actualCost || 0
+        existing.estimatedCost += m.estimatedCost || 0
+      } else {
+        byWO.set(woId, {
+          workOrderId: woRecord?.workOrderId || woId,
+          actualCost: m.actualCost || 0,
+          estimatedCost: m.estimatedCost || 0,
+          customerName: woRecord?.customer?.name || "",
+        })
+      }
+    }
+    return [...byWO.values()].sort((a, b) => b.actualCost - a.actualCost).slice(0, 5)
+  }, [allMaterials, workOrderLookup])
 
   const woWithCostOverruns = useMemo(() =>
     allMaterials.filter((m: any) => m.actualCost > m.estimatedCost && m.estimatedCost > 0),
@@ -131,7 +152,7 @@ export default function OwnerCommandCenter() {
         result.push({
           type: "MATERIAL_COST_OVERRUN",
           severity: wo.actualCost > wo.estimatedCost * 1.2 ? "high" : "medium",
-          message: `WO ${wo.workOrder?.workOrderId || wo.workOrderId} exceeded estimated material budget by ${Math.round((wo.actualCost / wo.estimatedCost - 1) * 100)}%`,
+          message: `WO ${wo.workOrderId}${wo.customerName ? ` (${wo.customerName})` : ""} exceeded estimated material budget by ${Math.round((wo.actualCost / wo.estimatedCost - 1) * 100)}%`,
           workOrderId: wo.workOrderId,
         })
       }
@@ -343,6 +364,9 @@ export default function OwnerCommandCenter() {
         <Card className="lg:col-span-2">
           <CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-[#4F8EF7]" /> 12-Month Cash Flow</CardTitle></CardHeader>
           <CardContent>
+            {cashFlow.monthlyCashFlow.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-12">No cash flow data yet</p>
+            ) : (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={cashFlow.monthlyCashFlow}>
@@ -356,6 +380,7 @@ export default function OwnerCommandCenter() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+            )}
           </CardContent>
         </Card>
 
@@ -534,7 +559,7 @@ export default function OwnerCommandCenter() {
                 <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId || wo.id}`)}>
                   <div>
                     <p className="text-sm font-medium text-gray-900">{wo.workOrderId || wo.id}</p>
-                    <p className="text-xs text-gray-400">Cost: {formatCurrency(wo.cost)} | Revenue: {formatCurrency(wo.revenue)}</p>
+                    <p className="text-xs text-gray-400">Budget: {formatCurrency(wo.budget)} | Actual: {formatCurrency(wo.actual)}</p>
                   </div>
                   <span className={`text-sm font-semibold ${wo.profit >= 0 ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>{formatCurrency(wo.profit)}</span>
                 </div>
@@ -562,7 +587,7 @@ export default function OwnerCommandCenter() {
                 {topExpensiveWOs.map((wo: any, i: number) => (
                   <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId}`)}>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{wo.workOrder?.workOrderId || "WO-" + wo.workOrderId?.slice(0, 8)}</p>
+                      <p className="text-sm font-medium text-gray-900">{wo.workOrderId}{wo.customerName ? <span className="text-xs text-gray-500 ml-1">— {wo.customerName}</span> : ""}</p>
                       <p className={`text-xs ${wo.actualCost > wo.estimatedCost ? "text-[#F45D5D]" : "text-[#36B37E]"}`}>
                         Est: {formatCurrency(wo.estimatedCost)} • Actual: {formatCurrency(wo.actualCost)}
                         {wo.estimatedCost > 0 && ` (${Math.round((wo.actualCost / wo.estimatedCost - 1) * 100)}%)`}

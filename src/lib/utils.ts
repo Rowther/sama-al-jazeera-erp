@@ -5,7 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number): string {
+export function formatCurrency(amount: number | null | undefined): string {
+  if (amount == null || isNaN(amount)) return "AED 0.00"
   return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(amount)
 }
 
