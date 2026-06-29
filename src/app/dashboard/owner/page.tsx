@@ -17,7 +17,7 @@ import {
 import {
   TrendingUp, TrendingDown, DollarSign, Package, Users, Clock,
   AlertTriangle, FileText, ShieldAlert, Activity, Wallet, CreditCard,
-  Building2, Calendar, ArrowUpRight, ArrowDownRight, Eye, Download,
+  Building2, Calendar, ArrowUpRight, ArrowDownRight, Eye,
   BarChart3, Factory, UserCheck, ShoppingCart, Target, BrainCircuit
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -239,7 +239,6 @@ export default function OwnerCommandCenter() {
             <div>
               <p className="text-sm text-gray-500">Total Revenue</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.totalRevenue || 0)}</p>
-              <span className="inline-flex items-center gap-1 text-xs text-[#36B37E] mt-1"><TrendingUp className="h-3 w-3" /> +12.5%</span>
             </div>
             <div className="p-3 rounded-xl bg-green-50 text-[#36B37E]"><DollarSign className="h-5 w-5" /></div>
           </div>
@@ -249,7 +248,6 @@ export default function OwnerCommandCenter() {
             <div>
               <p className="text-sm text-gray-500">Total Costs</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.totalCosts || 0)}</p>
-              <span className="inline-flex items-center gap-1 text-xs text-[#F45D5D] mt-1"><TrendingDown className="h-3 w-3" /> +8.2%</span>
             </div>
             <div className="p-3 rounded-xl bg-red-50 text-[#F45D5D]"><Wallet className="h-5 w-5" /></div>
           </div>
@@ -259,7 +257,6 @@ export default function OwnerCommandCenter() {
             <div>
               <p className="text-sm text-gray-500">Net Profit</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.netProfit || 0)}</p>
-              <span className="inline-flex items-center gap-1 text-xs text-[#36B37E] mt-1"><TrendingUp className="h-3 w-3" /> +5.3%</span>
             </div>
             <div className="p-3 rounded-xl bg-[#EEF4FF] text-[#4F8EF7]"><Activity className="h-5 w-5" /></div>
           </div>
@@ -327,7 +324,7 @@ export default function OwnerCommandCenter() {
               if (insights.length === 0) insights.push({
                 icon: <Activity className="h-4 w-4" />,
                 color: "bg-green-50 text-[#36B37E]",
-                message: "All metrics look healthy — no critical issues detected",
+                message: "No issues detected — all metrics within normal range",
                 severity: "low",
               })
               return insights
@@ -617,7 +614,7 @@ export default function OwnerCommandCenter() {
                     <td className="py-3 px-4 text-gray-700">{wo.customer?.name}</td>
                     <td className="py-3 px-4"><StatusBadge status={wo.status} /></td>
                     <td className="py-3 px-4 text-gray-700">{wo.estimatedBudget ? formatCurrency(wo.estimatedBudget) : "-"}</td>
-                    <td className="py-3 px-4 text-gray-700">{formatCurrency(wo.totalCost)}</td>
+                    <td className="py-3 px-4 text-gray-700">{wo.totalCost > 0 ? formatCurrency(wo.totalCost) : "-"}</td>
                     <td className="py-3 px-4 text-gray-700">{wo.dueDate ? formatDate(wo.dueDate) : "-"}</td>
                   </tr>
                 ))}
@@ -659,8 +656,8 @@ export default function OwnerCommandCenter() {
               <BarChart3 className="h-4 w-4 mr-1" /> <span className="hidden xs:inline">Analytics</span>
             </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => router.push("/accounting/reports")}>
-            <Download className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">Export</span>
+          <Button variant="outline" size="sm" onClick={() => router.push("/work-orders")}>
+            <Eye className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">View All Orders</span>
           </Button>
         </div>
       </div>
