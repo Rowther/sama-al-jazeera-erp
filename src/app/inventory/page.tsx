@@ -12,6 +12,7 @@ import { formatCurrency } from "@/lib/utils"
 import { Package, Plus, Search, AlertTriangle, TrendingUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/authStore"
+import { useDebounce } from "@/hooks"
 import { INVENTORY_CATEGORIES } from "@/lib/constants"
 
 const categoryOptions = [{ value: "", label: "All Categories" }, ...INVENTORY_CATEGORIES.map((c) => ({ value: c, label: c }))]
@@ -20,6 +21,7 @@ export default function InventoryPage() {
   const router = useRouter()
   const { user } = useAuthStore()
   const [search, setSearch] = useState("")
+  const debouncedSearch = useDebounce(search, 300)
   const [category, setCategory] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState(false)
   const [page, setPage] = useState(1)
@@ -29,7 +31,7 @@ export default function InventoryPage() {
 
   const queryParams = new URLSearchParams()
   queryParams.set("page", String(page))
-  const trimmedSearch = search.trim()
+  const trimmedSearch = debouncedSearch.trim()
   if (trimmedSearch) queryParams.set("search", trimmedSearch)
   if (category) queryParams.set("category", category)
   if (lowStockOnly) queryParams.set("lowStock", "true")

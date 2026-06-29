@@ -37,6 +37,7 @@ next-env.d.ts
 public/uploads/*
 !public/uploads/.gitkeep
 data/uploads/*
+!data/uploads/.gitkeep
 
 # prisma
 prisma/migrations/

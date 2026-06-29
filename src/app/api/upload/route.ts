@@ -15,12 +15,14 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "designs")
-    await mkdir(uploadDir, { recursive: true })
+    const publicDir = path.join(process.cwd(), "public", "uploads", "designs")
+    const dataDir = path.join(process.cwd(), "data", "uploads", "designs")
+    await mkdir(publicDir, { recursive: true })
+    await mkdir(dataDir, { recursive: true })
 
     const uniqueName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
-    const filePath = path.join(uploadDir, uniqueName)
-    await writeFile(filePath, buffer)
+    await writeFile(path.join(publicDir, uniqueName), buffer)
+    await writeFile(path.join(dataDir, uniqueName), buffer)
 
     const url = `/uploads/designs/${uniqueName}`
 
