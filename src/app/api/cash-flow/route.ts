@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
           ? monthlyCashFlow.reduce((s, m) => s + m.expenses + m.payroll, 0) / monthlyCashFlow.length
           : 0,
         burnRate: monthlyCashFlow.length > 0
-          ? Math.abs(monthlyCashFlow.filter(m => m.net < 0).reduce((s, m) => s + m.net, 0)) / Math.max(1, monthlyCashFlow.filter(m => m.net < 0).length)
+          ? monthlyCashFlow.reduce((s, m) => s + m.expenses + m.payroll, 0) / monthlyCashFlow.length
           : 0,
       },
     })

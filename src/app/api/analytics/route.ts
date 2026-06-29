@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
     const [
       statusCounts,
       expensesAgg,
-      paymentsAgg,
+      workOrdersAdvAgg,
+      generalIncomeAgg,
       employees,
       delayedCount,
       budgetOverruns,
@@ -18,7 +19,11 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       prisma.workOrder.groupBy({ by: ["status"], _count: { id: true } }),
       prisma.expense.aggregate({ _sum: { amount: true } }),
-      prisma.payment.aggregate({ _sum: { amount: true } }),
+      prisma.workOrder.aggregate({ _sum: { advanceReceived: true } }),
+      prisma.payment.aggregate({
+        where: { type: "INCOME", workOrderId: null },
+        _sum: { amount: true },
+      }),
       prisma.employee.count(),
       prisma.workOrder.count({ where: { isDelayed: true } }),
       prisma.workOrder.findMany({
@@ -33,7 +38,7 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    const totalRevenue = paymentsAgg._sum.amount || 0
+    const totalRevenue = (workOrdersAdvAgg._sum.advanceReceived || 0) + (generalIncomeAgg._sum.amount || 0)
     const totalCosts = expensesAgg._sum.amount || 0
     const totalWO = statusCounts.reduce((s, g) => s + g._count.id, 0)
     const completed = statusCounts
