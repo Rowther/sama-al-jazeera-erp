@@ -24,11 +24,10 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState("")
 
   const { data, isLoading } = useQuery({
-    queryKey: ["work-orders", statusFilter, search],
+    queryKey: ["work-orders", statusFilter],
     queryFn: () => {
       const params = new URLSearchParams()
       if (statusFilter) params.set("status", statusFilter)
-      if (search) params.set("search", search)
       params.set("limit", "200")
       return api.get<any>(`/work-orders?${params.toString()}`)
     },
@@ -38,7 +37,13 @@ export default function WorkOrdersPage() {
 
   const filtered = useMemo(() =>
     workOrders.filter((wo: any) =>
-      !search || wo.workOrderId.toLowerCase().includes(search.toLowerCase()) || wo.customer?.name?.toLowerCase().includes(search.toLowerCase())
+      !search
+      || wo.workOrderId?.toLowerCase().includes(search.toLowerCase())
+      || wo.customer?.name?.toLowerCase().includes(search.toLowerCase())
+      || wo.customer?.phone?.toLowerCase().includes(search.toLowerCase())
+      || wo.furnitureType?.toLowerCase().includes(search.toLowerCase())
+      || wo.projectType?.toLowerCase().includes(search.toLowerCase())
+      || wo.assignedTo?.name?.toLowerCase().includes(search.toLowerCase())
     ),
   [workOrders, search])
 
@@ -55,7 +60,7 @@ export default function WorkOrdersPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Work Orders</h1>
-          <p className="text-sm text-gray-500 mt-1">{workOrders.length} total orders</p>
+          <p className="text-sm text-gray-500 mt-1">{filtered.length} {search ? "matching" : "total"} orders</p>
         </div>
         {(user?.role === "MANAGER" || user?.role === "OWNER") && (
           <Button className="w-full sm:w-auto" onClick={() => router.push("/work-orders/new")}>
@@ -110,15 +115,10 @@ export default function WorkOrdersPage() {
                     </div>
                   </div>
                 </div>
-                {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">{formatCurrency(wo.totalCost)}</p>
-                    {wo.estimatedBudget && <p className="text-xs text-gray-400">Budget: {formatCurrency(wo.estimatedBudget)}</p>}
-                    {wo.profitMargin !== null && (
-                      <p className={`text-xs ${wo.profitMargin >= 0 ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>
-                        {wo.profitMargin >= 0 ? "+" : ""}{wo.profitMargin?.toFixed(1)}%
-                      </p>
-                    )}
+                {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (wo.totalCost > 0 || wo.estimatedBudget > 0) && (
+                  <div className="text-right shrink-0">
+                    {wo.totalCost > 0 && <p className="text-sm font-semibold text-gray-900">{formatCurrency(wo.totalCost)}</p>}
+                    {wo.estimatedBudget > 0 && <p className="text-xs text-gray-400">Budget: {formatCurrency(wo.estimatedBudget)}</p>}
                   </div>
                 )}
               </div>
