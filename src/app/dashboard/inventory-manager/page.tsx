@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { Package, AlertTriangle, ShoppingCart, TrendingUp, PlusCircle, BarChart3, PackagePlus } from "lucide-react"
+import { Package, AlertTriangle, ShoppingCart, TrendingUp, PlusCircle, BarChart3, PackagePlus, Calendar } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
@@ -51,6 +51,7 @@ export default function InventoryManagerDashboard() {
   const lowStockCount = inventory.filter((i: any) => i.stockQuantity <= i.minStock).length
 
   const [selectedWoId, setSelectedWoId] = useState("")
+  const [materialSelected, setMaterialSelected] = useState(false)
   const [materialForm, setMaterialForm] = useState({
     materialName: "", category: "", requiredQuantity: "", unit: "pcs",
     estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "",
@@ -106,7 +107,10 @@ export default function InventoryManagerDashboard() {
         </div>
         <div className="flex gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/inventory-manager/analysis")}>
-            <BarChart3 className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">Material Analysis</span>
+            <BarChart3 className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">Analysis</span>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/inventory-manager/usage")}>
+            <Calendar className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">Usage Report</span>
           </Button>
           <Button size="sm" onClick={() => router.push("/inventory")}>
             <Package className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">Manage Inventory</span>
@@ -164,8 +168,8 @@ export default function InventoryManagerDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div className="space-y-1 relative">
                   <label className="text-xs text-gray-500">Material Name *</label>
-                  <Input value={materialForm.materialName} onChange={(e) => setMaterialForm({ ...materialForm, materialName: e.target.value })} placeholder="e.g., MDF Board" />
-                  {debouncedMaterialSearch && (
+                  <Input value={materialForm.materialName} onChange={(e) => { setMaterialSelected(false); setMaterialForm({ ...materialForm, materialName: e.target.value }) }} placeholder="e.g., MDF Board" />
+                  {!materialSelected && debouncedMaterialSearch && (
                     <>
                       {materialSearching && searchResults.length === 0 && (
                         <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
@@ -180,13 +184,15 @@ export default function InventoryManagerDashboard() {
                               type="button"
                               className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
                               onClick={() => {
-                                setMaterialForm({
-                                  ...materialForm,
-                                  materialName: item.name,
-                                  category: item.category?.name || "",
-                                  unit: item.unit || "pcs",
-                                  estimatedCost: String(item.price || ""),
-                                })
+                              setMaterialSelected(true)
+                              setMaterialForm({
+                                ...materialForm,
+                                materialName: item.name,
+                                category: item.category?.name || "",
+                                unit: item.unit || "pcs",
+                                estimatedCost: String(item.price || ""),
+                                requiredQuantity: "1",
+                              })
                               }}
                             >
                               <div>

@@ -54,6 +54,7 @@ export const NAV_ITEMS = {
     { label: 'Payroll', href: '/employees/payroll', icon: 'Wallet' },
     { label: 'Accounting', href: '/accounting', icon: 'Landmark' },
     { label: 'Inventory', href: '/inventory', icon: 'Package' },
+    { label: 'Inventory Usage', href: '/dashboard/inventory-manager/usage', icon: 'BarChart3' },
     { label: 'Material Requests', href: '/material-requests', icon: 'ClipboardCheck' },
     { label: 'Purchases', href: '/purchases', icon: 'ShoppingCart' },
     { label: 'Suppliers', href: '/suppliers', icon: 'Building2' },
@@ -86,6 +87,7 @@ export const NAV_ITEMS = {
   INVENTORY_MANAGER: [
     { label: 'Dashboard', href: '/dashboard/inventory-manager', icon: 'LayoutDashboard' },
     { label: 'Inventory', href: '/inventory', icon: 'Package' },
+    { label: 'Inventory Usage', href: '/dashboard/inventory-manager/usage', icon: 'BarChart3' },
     { label: 'Material Analysis', href: '/dashboard/inventory-manager/analysis', icon: 'Search' },
     { label: 'Material Requests', href: '/material-requests', icon: 'ClipboardCheck' },
     { label: 'Purchases', href: '/purchases', icon: 'ShoppingCart' },

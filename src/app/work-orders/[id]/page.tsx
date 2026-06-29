@@ -159,6 +159,7 @@ export default function WorkOrderDetailPage() {
     estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "",
   })
   const [materialItemId, setMaterialItemId] = useState("")
+  const [materialSelected, setMaterialSelected] = useState(false)
   const debouncedMaterialSearch = useDebounce(newMaterial.materialName, 300)
   const { data: materialSearchData, isFetching: materialSearching } = useQuery({
     queryKey: ["inventory-search", debouncedMaterialSearch],
@@ -192,6 +193,7 @@ export default function WorkOrderDetailPage() {
       setNewMaterial({ materialName: "", category: "", requiredQuantity: "", unit: "pcs", estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "" })
       queryClient.invalidateQueries({ queryKey: ["work-order-materials", params.id] })
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+      inventoryCheckMutation.mutate()
     },
     onError: (err: any) => toast.error(err.message),
   })
@@ -744,8 +746,8 @@ export default function WorkOrderDetailPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="space-y-1 relative">
                     <label className="text-xs text-gray-500">Material Name *</label>
-                    <Input value={newMaterial.materialName} onChange={(e) => setNewMaterial({ ...newMaterial, materialName: e.target.value })} placeholder="e.g., MDF Board" />
-                    {debouncedMaterialSearch && (
+                    <Input value={newMaterial.materialName} onChange={(e) => { setMaterialSelected(false); setNewMaterial({ ...newMaterial, materialName: e.target.value }) }} placeholder="e.g., MDF Board" />
+                    {!materialSelected && debouncedMaterialSearch && (
                       <>
                         {materialSearching && searchResults.length === 0 && (
                           <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
@@ -760,12 +762,14 @@ export default function WorkOrderDetailPage() {
                                 type="button"
                                 className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
                                 onClick={() => {
+                                  setMaterialSelected(true)
                                   setNewMaterial({
                                     ...newMaterial,
                                     materialName: item.name,
                                     category: item.category?.name || "",
                                     unit: item.unit || "pcs",
                                     estimatedCost: String(item.price || ""),
+                                    requiredQuantity: "1",
                                   })
                                 }}
                               >
