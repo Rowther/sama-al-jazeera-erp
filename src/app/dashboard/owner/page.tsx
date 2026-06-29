@@ -556,10 +556,10 @@ export default function OwnerCommandCenter() {
           <CardContent>
             <div className="space-y-3">
               {profitData.slice(0, 6).map((wo: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId || wo.id}`)}>
+                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId}`)}>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{wo.workOrderId || wo.id}</p>
-                    <p className="text-xs text-gray-400">Budget: {formatCurrency(wo.budget)} | Actual: {formatCurrency(wo.actual)}</p>
+                    <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
+                    <p className="text-xs text-gray-400">Revenue: {formatCurrency(wo.revenue)} | Cost: {formatCurrency(wo.cost)}</p>
                   </div>
                   <span className={`text-sm font-semibold ${wo.profit >= 0 ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>{formatCurrency(wo.profit)}</span>
                 </div>

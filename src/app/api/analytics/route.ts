@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         take: 100,
       }),
       prisma.workOrder.findMany({
-        select: { workOrderId: true, totalCost: true, estimatedBudget: true, profitMargin: true, status: true, costOverrun: true },
+        select: { workOrderId: true, totalCost: true, estimatedBudget: true, advanceReceived: true, profitMargin: true, status: true, costOverrun: true },
         orderBy: { createdAt: "desc" },
         take: 50,
       }),
@@ -70,12 +70,14 @@ export async function GET(request: NextRequest) {
     ]
 
     const profitByWO = recentWorkOrders
-      .filter(wo => wo.estimatedBudget && wo.estimatedBudget > 0)
+      .filter(wo => wo.advanceReceived > 0 || (wo.estimatedBudget && wo.estimatedBudget > 0))
       .map(wo => ({
         workOrderId: wo.workOrderId,
         budget: wo.estimatedBudget || 0,
         actual: wo.totalCost,
-        profit: (wo.estimatedBudget || 0) - wo.totalCost,
+        revenue: wo.advanceReceived || 0,
+        cost: wo.totalCost,
+        profit: (wo.advanceReceived || 0) - wo.totalCost,
         margin: wo.profitMargin || 0,
         status: wo.status,
       }))

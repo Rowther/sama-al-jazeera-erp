@@ -42,8 +42,8 @@ export default function AnalyticsPage() {
   const insights = [
     ...anomalies,
     ...(delayedWO.length > 0 ? [{ type: "delay_analysis", severity: "medium" as const, message: `${delayedWO.length} work orders are currently delayed. Average delay: ${Math.round(delayedWO.reduce((s: number, w: any) => s + w.delayDays, 0) / delayedWO.length)} days` }] : []),
-    ...(highestCostWO.length > 0 ? [{ type: "cost_analysis", severity: "medium" as const, message: `Highest spending work order: ${highestCostWO[0]?.id} at ${formatCurrency(highestCostWO[0]?.cost)}` }] : []),
-    ...(lowestProfitWO.length > 0 && lowestProfitWO[0]?.profit < 0 ? [{ type: "loss_analysis", severity: "high" as const, message: `Work order ${lowestProfitWO[0]?.id} is running at a loss of ${formatCurrency(Math.abs(lowestProfitWO[0]?.profit))}` }] : []),
+    ...(highestCostWO.length > 0 ? [{ type: "cost_analysis", severity: "medium" as const, message: `Highest spending work order: ${highestCostWO[0]?.workOrderId} at ${formatCurrency(highestCostWO[0]?.cost)}` }] : []),
+    ...(lowestProfitWO.length > 0 && lowestProfitWO[0]?.profit < 0 ? [{ type: "loss_analysis", severity: "high" as const, message: `Work order ${lowestProfitWO[0]?.workOrderId} is running at a loss of ${formatCurrency(Math.abs(lowestProfitWO[0]?.profit))}` }] : []),
   ]
 
   return (
@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={profitData.slice(0, 10)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="id" tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="workOrderId" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
                   <Bar dataKey="profit" radius={[6, 6, 0, 0]}>
@@ -115,7 +115,7 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={highestCostWO}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="id" tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="workOrderId" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(v: number) => formatCurrency(v)} />
                   <Bar dataKey="cost" radius={[6, 6, 0, 0]} fill="#F45D5D" />
@@ -134,9 +134,9 @@ export default function AnalyticsPage() {
           <CardContent>
             <div className="space-y-3">
               {highestCostWO.map((wo: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.id}`)}>
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId}`)}>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{wo.id}</p>
+                    <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
                     <p className="text-xs text-gray-400">Revenue: {formatCurrency(wo.revenue)}</p>
                   </div>
                   <div className="text-right">
