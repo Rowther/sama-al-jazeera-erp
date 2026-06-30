@@ -75,27 +75,36 @@ async function deductInventoryForMaterial(tx: any, material: any, userId: string
   })
 
   let matchingItems: any[] = []
+  const seen = new Set<string>()
 
+  // 1. Always include the directly-linked item if set
   if (material.inventoryItemId) {
     const directItem = allInventory.find((i: any) => i.id === material.inventoryItemId)
-    if (directItem) matchingItems = [directItem]
+    if (directItem) {
+      matchingItems.push(directItem)
+      seen.add(directItem.id)
+    }
   }
 
-  if (matchingItems.length === 0) {
-    const normalizedName = material.materialName.toLowerCase().trim()
+  const normalizedName = material.materialName.toLowerCase().trim()
 
-    // Try SKU match first
-    matchingItems = allInventory.filter((item: any) => {
-      const itemSku = item.sku?.toLowerCase().trim()
-      return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
-    })
+  // 2. Try SKU match
+  const skuMatches = allInventory.filter((item: any) => {
+    if (seen.has(item.id)) return false
+    const itemSku = item.sku?.toLowerCase().trim()
+    return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
+  })
+  for (const item of skuMatches) {
+    matchingItems.push(item)
+    seen.add(item.id)
   }
 
-  if (matchingItems.length === 0) {
-    const normalizedName = material.materialName.toLowerCase().trim()
+  // 3. Try name match (if SKU found nothing)
+  if (skuMatches.length === 0) {
     const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
 
-    matchingItems = allInventory.filter((item: any) => {
+    const nameMatches = allInventory.filter((item: any) => {
+      if (seen.has(item.id)) return false
       const itemName = item.name.toLowerCase().trim()
       const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
 
@@ -111,6 +120,10 @@ async function deductInventoryForMaterial(tx: any, material: any, userId: string
       }
       return false
     })
+    for (const item of nameMatches) {
+      matchingItems.push(item)
+      seen.add(item.id)
+    }
   }
 
   let remaining = material.requiredQuantity
