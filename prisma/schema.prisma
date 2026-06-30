@@ -177,6 +177,7 @@ model User {
   delayAlerts       DelayAlert[]
   assignedStages    ProductionStage[]    @relation("StageAssignedTo")
   laborEntries      LaborEntry[]
+  assignedItems     WorkOrderItem[]      @relation("AssignedLabourer")
   purchaseApprovalsRequested PurchaseApproval[] @relation("RequestedBy")
   purchaseApprovalsApproved  PurchaseApproval[] @relation("ApprovedBy")
 
@@ -482,6 +483,10 @@ model WorkOrderItem {
   actualCost      Float               @default(0)
   productionStartedAt   DateTime?
   productionCompletedAt DateTime?
+  assignedLabourerId String?
+  assignedLabourer   User?          @relation("AssignedLabourer", fields: [assignedLabourerId], references: [id])
+  expectedCompletionDate DateTime?
+  delayReason       String?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -495,6 +500,7 @@ model WorkOrderItem {
   @@index([workOrderId])
   @@index([status])
   @@index([workOrderId, status])
+  @@index([assignedLabourerId])
 }
 
 model WorkOrderTeamMember {

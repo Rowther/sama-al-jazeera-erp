@@ -378,7 +378,7 @@ export default function WorkOrderDetailPage() {
 
       {/* Item-Level Progress */}
       {wo.workOrderItems && wo.workOrderItems.length > 0 && (
-        <ItemProgress items={wo.workOrderItems} />
+        <ItemProgress items={wo.workOrderItems} workOrderId={wo.id} labourUsers={labourUsers} currentStatus={wo.status} />
       )}
 
       {/* Financial Overview */}
@@ -479,6 +479,7 @@ export default function WorkOrderDetailPage() {
         currentStatus={wo.status}
         productionStartedAt={wo.productionStartedAt}
         productionCompletedAt={wo.productionCompletedAt}
+        workOrderItems={wo.workOrderItems?.map((i: any) => ({ id: i.id, name: i.name, quantity: i.quantity, status: i.status, progress: i.progress }))}
       />
 
       <ProductionStages

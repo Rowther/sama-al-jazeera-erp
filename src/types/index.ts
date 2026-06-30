@@ -78,6 +78,10 @@ export interface WorkOrderItem {
   actualCost: number
   productionStartedAt?: string
   productionCompletedAt?: string
+  assignedLabourerId?: string
+  assignedLabourer?: { id: string; name: string; role: string }
+  expectedCompletionDate?: string
+  delayReason?: string
   createdAt: string
   updatedAt: string
   workerAssignments?: WorkerAssignment[]

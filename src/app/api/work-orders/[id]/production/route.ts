@@ -11,6 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const data = await request.json()
     const action = data.action as string
+    const itemIds: string[] = data.itemIds || []
 
     if (!validActions.includes(action as any)) {
       return NextResponse.json({ message: `Invalid action. Must be one of: ${validActions.join(", ")}` }, { status: 400 })
@@ -34,6 +35,32 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               where: { id: params.id },
               data: { status: newStatus, productionStartedAt: now },
             })
+
+            if (itemIds.length > 0) {
+              await tx.workOrderItem.updateMany({
+                where: { id: { in: itemIds }, workOrderId: params.id },
+                data: { status: "IN_PROGRESS", productionStartedAt: now },
+              })
+
+              const remainingItems = await tx.workOrderItem.findMany({
+                where: { workOrderId: params.id, id: { notIn: itemIds } },
+                select: { id: true, status: true },
+              })
+              const alreadyCompleted = remainingItems.filter(i => i.status === "COMPLETED" || i.status === "CANCELLED")
+              const stillPending = remainingItems.filter(i => i.status !== "COMPLETED" && i.status !== "CANCELLED")
+
+              if (stillPending.length > 0) {
+                await tx.workOrderItem.updateMany({
+                  where: { id: { in: stillPending.map(i => i.id) } },
+                  data: { status: "PENDING" },
+                })
+              }
+            } else {
+              await tx.workOrderItem.updateMany({
+                where: { workOrderId: params.id, status: "PENDING" },
+                data: { status: "IN_PROGRESS", productionStartedAt: now },
+              })
+            }
           }
           break
         case "PAUSE":
@@ -43,6 +70,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               where: { id: params.id },
               data: { status: newStatus },
             })
+
+            if (itemIds.length > 0) {
+              await tx.workOrderItem.updateMany({
+                where: { id: { in: itemIds }, workOrderId: params.id },
+                data: { status: "PENDING" },
+              })
+            }
           }
           break
         case "RESUME":
@@ -52,53 +86,88 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
               where: { id: params.id },
               data: { status: newStatus },
             })
+
+            if (itemIds.length > 0) {
+              await tx.workOrderItem.updateMany({
+                where: { id: { in: itemIds }, workOrderId: params.id },
+                data: { status: "IN_PROGRESS" },
+              })
+            }
           }
           break
         case "COMPLETE":
           if (order.status === "IN_PRODUCTION" || order.status === "PRODUCTION_STARTED") {
-            newStatus = "PRODUCTION_COMPLETED"
-            await tx.workOrder.update({
-              where: { id: params.id },
-              data: { status: newStatus, productionCompletedAt: now },
-            })
+            if (itemIds.length > 0) {
+              await tx.workOrderItem.updateMany({
+                where: { id: { in: itemIds }, workOrderId: params.id },
+                data: { status: "COMPLETED", progress: 100, productionCompletedAt: now },
+              })
 
-            const orderData = await tx.workOrder.findUnique({
-              where: { id: params.id },
-              include: {
-                customer: true,
-                createdBy: { select: { id: true, name: true } },
-                assignedTo: { select: { id: true, name: true } },
-                teamMembers: { include: { user: { select: { id: true, name: true, role: true } } } },
-                workerAssignments: { include: { user: { select: { id: true, name: true, role: true } } } },
-                materials: true,
-                designs: true,
-                expenses: true,
-                payments: true,
-                installments: true,
-              },
-            })
-            if (orderData) {
-              await tx.jobCard.create({
-                data: {
-                  workOrderId: params.id,
-                  generatedById: user.userId,
-                },
+              const allItems = await tx.workOrderItem.findMany({
+                where: { workOrderId: params.id },
+                select: { status: true },
+              })
+              const allDone = allItems.every(i => i.status === "COMPLETED" || i.status === "CANCELLED")
+
+              if (allDone) {
+                newStatus = "PRODUCTION_COMPLETED"
+                await tx.workOrder.update({
+                  where: { id: params.id },
+                  data: { status: newStatus, productionCompletedAt: now },
+                })
+              }
+            } else {
+              newStatus = "PRODUCTION_COMPLETED"
+              await tx.workOrder.update({
+                where: { id: params.id },
+                data: { status: newStatus, productionCompletedAt: now },
+              })
+
+              await tx.workOrderItem.updateMany({
+                where: { workOrderId: params.id, status: { notIn: ["CANCELLED"] } },
+                data: { status: "COMPLETED", progress: 100, productionCompletedAt: now },
               })
             }
 
-            const managersAndOwners = await tx.user.findMany({
-              where: { role: { in: ["OWNER", "MANAGER"] }, isActive: true },
-            })
-            if (managersAndOwners.length > 0) {
-              await tx.notification.createMany({
-                data: managersAndOwners.map((m) => ({
-                  userId: m.id,
-                  type: "APPROVAL_REQUIRED",
-                  title: "Digital Signature Required",
-                  message: `Work order ${order.workOrderId} production completed. Digital signature needed for delivery.`,
-                  link: `/work-orders/${params.id}`,
-                })),
+            if (newStatus === "PRODUCTION_COMPLETED") {
+              const orderData = await tx.workOrder.findUnique({
+                where: { id: params.id },
+                include: {
+                  customer: true,
+                  createdBy: { select: { id: true, name: true } },
+                  assignedTo: { select: { id: true, name: true } },
+                  teamMembers: { include: { user: { select: { id: true, name: true, role: true } } } },
+                  workerAssignments: { include: { user: { select: { id: true, name: true, role: true } } } },
+                  materials: true,
+                  designs: true,
+                  expenses: true,
+                  payments: true,
+                  installments: true,
+                },
               })
+              if (orderData) {
+                await tx.jobCard.create({
+                  data: {
+                    workOrderId: params.id,
+                    generatedById: user.userId,
+                  },
+                })
+              }
+
+              const managersAndOwners = await tx.user.findMany({
+                where: { role: { in: ["OWNER", "MANAGER"] }, isActive: true },
+              })
+              if (managersAndOwners.length > 0) {
+                await tx.notification.createMany({
+                  data: managersAndOwners.map((m) => ({
+                    userId: m.id,
+                    type: "APPROVAL_REQUIRED",
+                    title: "Digital Signature Required",
+                    message: `Work order ${order.workOrderId} production completed. Digital signature needed for delivery.`,
+                    link: `/work-orders/${params.id}`,
+                  })),
+                })
+              }
             }
           }
           break
@@ -109,8 +178,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           workOrderId: params.id,
           userId: user.userId,
           action: `PRODUCTION_${action}`,
-          description: `Production ${action.toLowerCase()}d for work order ${order.workOrderId}`,
-          metadata: { action, previousStatus: order.status, newStatus },
+          description: `Production ${action.toLowerCase()}d for work order ${order.workOrderId}${itemIds.length > 0 ? ` (${itemIds.length} item(s))` : ""}`,
+          metadata: { action, previousStatus: order.status, newStatus, itemIds },
         },
       })
 

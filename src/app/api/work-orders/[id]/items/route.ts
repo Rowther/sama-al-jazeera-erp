@@ -87,12 +87,23 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ message: "itemId is required" }, { status: 400 })
     }
 
-    const allowedFields = ["name", "description", "quantity", "unitPrice", "totalPrice", "image", "dimensions", "notes", "status", "progress", "deliveryStatus", "estimatedCost"]
+    const allowedFields = ["name", "description", "quantity", "unitPrice", "totalPrice", "image", "dimensions", "notes", "status", "progress", "deliveryStatus", "estimatedCost", "assignedLabourerId", "expectedCompletionDate", "delayReason", "isDelayed", "delayDays"]
     const cleanData: Record<string, unknown> = {}
     for (const key of allowedFields) {
       if (updateData[key] !== undefined) cleanData[key] = updateData[key]
     }
     if (cleanData.estimatedCost !== undefined) cleanData.estimatedCost = parseFloat(cleanData.estimatedCost as string)
+    if (cleanData.expectedCompletionDate !== undefined && cleanData.expectedCompletionDate) {
+      cleanData.expectedCompletionDate = new Date(cleanData.expectedCompletionDate as string)
+    } else if (cleanData.expectedCompletionDate === null) {
+      cleanData.expectedCompletionDate = null
+    }
+    if (cleanData.assignedLabourerId !== undefined) {
+      cleanData.assignedLabourerId = (cleanData.assignedLabourerId as string) || null
+    }
+    if (cleanData.delayReason !== undefined) {
+      cleanData.delayReason = (cleanData.delayReason as string) || null
+    }
 
     const item = await prisma.workOrderItem.update({
       where: { id: itemId },

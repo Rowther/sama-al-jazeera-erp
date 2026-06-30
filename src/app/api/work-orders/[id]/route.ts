@@ -45,6 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         },
         workOrderItems: {
           include: {
+            assignedLabourer: { select: { id: true, name: true, role: true } },
             workerAssignments: { include: { user: { select: { id: true, name: true, role: true } } } },
             productionStages: {
               include: {

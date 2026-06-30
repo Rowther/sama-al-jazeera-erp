@@ -68,6 +68,64 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 }
 
+async function deductInventoryForMaterial(tx: any, material: any, userId: string) {
+  const allInventory = await tx.inventoryItem.findMany({
+    include: { category: true },
+  })
+
+  const normalizedName = material.materialName.toLowerCase().trim()
+  const nameWords = normalizedName.split(/\s+/)
+
+  const matchingItems = allInventory.filter((item: any) => {
+    const itemName = item.name.toLowerCase().trim()
+    const itemWords = itemName.split(/\s+/)
+    const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
+    const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+    if (matchRatio >= 0.5) return true
+    if (material.category && item.category?.name?.toLowerCase() === material.category.toLowerCase()) {
+      const catShared = nameWords.filter((w: string) => itemWords.includes(w))
+      return catShared.length > 0
+    }
+    return false
+  })
+
+  let remaining = material.requiredQuantity
+  for (const item of matchingItems) {
+    if (remaining <= 0) break
+    const deductQty = Math.min(item.stockQuantity, remaining)
+    if (deductQty <= 0) continue
+
+    await tx.inventoryItem.update({
+      where: { id: item.id },
+      data: { stockQuantity: { decrement: deductQty } },
+    })
+
+    await tx.inventoryMovement.create({
+      data: {
+        itemId: item.id,
+        type: "OUT",
+        quantity: deductQty,
+        referenceId: material.workOrderId,
+        referenceType: "WORK_ORDER",
+        notes: `Deducted for approved material: ${material.materialName}`,
+        createdById: userId,
+      },
+    })
+
+    await tx.workOrderInventory.create({
+      data: {
+        workOrderId: material.workOrderId,
+        workOrderItemId: material.workOrderItemId || undefined,
+        itemId: item.id,
+        quantityAllocated: deductQty,
+        quantityUsed: deductQty,
+      },
+    })
+
+    remaining -= deductQty
+  }
+}
+
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "ACCOUNTANT", "INVENTORY_MANAGER"])
@@ -80,64 +138,69 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const { materialId, status, action, updates } = data
 
     if (action === "approve_all") {
-      const updated = await prisma.workOrderMaterial.updateMany({
-        where: { workOrderId: params.id, status: { notIn: ["APPROVED", "REJECTED"] } },
-        data: { status: "APPROVED" },
-      })
+      const result = await prisma.$transaction(async (tx) => {
+        const pendingMaterials = await tx.workOrderMaterial.findMany({
+          where: { workOrderId: params.id, status: { notIn: ["APPROVED", "REJECTED"] } },
+        })
 
-      const approvedMaterials = await prisma.workOrderMaterial.findMany({
-        where: { workOrderId: params.id, status: "APPROVED" },
-      })
+        const updated = await tx.workOrderMaterial.updateMany({
+          where: { workOrderId: params.id, status: { notIn: ["APPROVED", "REJECTED"] } },
+          data: { status: "APPROVED" },
+        })
 
-      for (const mat of approvedMaterials) {
-        const expenseAmount = mat.estimatedCost || mat.actualCost || 0
-        if (expenseAmount > 0) {
-          await prisma.expense.create({
+        for (const mat of pendingMaterials) {
+          const expenseAmount = mat.estimatedCost || mat.actualCost || 0
+          if (expenseAmount > 0) {
+            await tx.expense.create({
+              data: {
+                workOrderId: params.id,
+                category: "MATERIAL",
+                amount: expenseAmount,
+                description: `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`,
+                approvedById: user.userId,
+              },
+            })
+          }
+          await deductInventoryForMaterial(tx, mat, user.userId)
+        }
+
+        const totalExpenses = await tx.expense.aggregate({
+          where: { workOrderId: params.id },
+          _sum: { amount: true },
+        })
+        await tx.workOrder.update({
+          where: { id: params.id },
+          data: { totalCost: totalExpenses._sum.amount || 0 },
+        })
+
+        await tx.activityHistory.create({
+          data: {
+            workOrderId: params.id, userId: user.userId, action: "MATERIALS_APPROVED",
+            description: `All materials approved by ${currentUser.name}. ${pendingMaterials.length} material(s) deducted from inventory.`,
+          },
+        })
+
+        const workOrder = await tx.workOrder.findUnique({
+          where: { id: params.id },
+          select: { status: true },
+        })
+        if (workOrder?.status === "MATERIAL_REVIEW") {
+          await tx.workOrder.update({
+            where: { id: params.id },
+            data: { status: "READY_FOR_PRODUCTION" },
+          })
+          await tx.activityHistory.create({
             data: {
-              workOrderId: params.id,
-              category: "MATERIAL",
-              amount: expenseAmount,
-              description: `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`,
-              approvedById: user.userId,
+              workOrderId: params.id, userId: user.userId, action: "STATUS_CHANGED",
+              description: `Work order moved to Ready For Production after material approval by ${currentUser.name}`,
             },
           })
         }
-      }
 
-      const totalExpenses = await prisma.expense.aggregate({
-        where: { workOrderId: params.id },
-        _sum: { amount: true },
-      })
-      await prisma.workOrder.update({
-        where: { id: params.id },
-        data: { totalCost: totalExpenses._sum.amount || 0 },
+        return { count: updated.count }
       })
 
-      await prisma.activityHistory.create({
-        data: {
-          workOrderId: params.id, userId: user.userId, action: "MATERIALS_APPROVED",
-          description: `All materials approved by ${currentUser.name}. ${approvedMaterials.length} expense(s) recorded.`,
-        },
-      })
-
-      const workOrder = await prisma.workOrder.findUnique({
-        where: { id: params.id },
-        select: { status: true },
-      })
-      if (workOrder?.status === "MATERIAL_REVIEW") {
-        await prisma.workOrder.update({
-          where: { id: params.id },
-          data: { status: "READY_FOR_PRODUCTION" },
-        })
-        await prisma.activityHistory.create({
-          data: {
-            workOrderId: params.id, userId: user.userId, action: "STATUS_CHANGED",
-            description: `Work order moved to Ready For Production after material approval by ${currentUser.name}`,
-          },
-        })
-      }
-
-      return NextResponse.json({ count: updated.count })
+      return NextResponse.json(result)
     }
 
     if (action === "reject_all") {
@@ -183,67 +246,73 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     if (materialId && (status === "APPROVED" || status === "REJECTED")) {
-      const material = await prisma.workOrderMaterial.update({
-        where: { id: materialId },
-        data: { status: status as any },
-      })
-
-      const actionLabel = status === "APPROVED" ? "MATERIAL_APPROVED" : "MATERIAL_REJECTED"
-      await prisma.activityHistory.create({
-        data: {
-          workOrderId: params.id, userId: user.userId,
-          action: actionLabel,
-          description: `Material "${material.materialName}" ${status.toLowerCase()} by ${currentUser.name}`,
-        },
-      })
-
-      if (status === "APPROVED") {
-        const expenseAmount = material.estimatedCost || material.actualCost || 0
-        if (expenseAmount > 0) {
-          await prisma.expense.create({
-            data: {
-              workOrderId: params.id,
-              category: "MATERIAL",
-              amount: expenseAmount,
-              description: `Material: ${material.materialName}${material.category ? ` (${material.category})` : ""}`,
-              approvedById: user.userId,
-            },
-          })
-
-          const totalExpenses = await prisma.expense.aggregate({
-            where: { workOrderId: params.id },
-            _sum: { amount: true },
-          })
-          await prisma.workOrder.update({
-            where: { id: params.id },
-            data: { totalCost: totalExpenses._sum.amount || 0 },
-          })
-        }
-
-        const remaining = await prisma.workOrderMaterial.findMany({
-          where: { workOrderId: params.id, status: { notIn: ["APPROVED", "REJECTED"] } },
+      const result = await prisma.$transaction(async (tx) => {
+        const material = await tx.workOrderMaterial.update({
+          where: { id: materialId },
+          data: { status: status as any },
         })
-        if (remaining.length === 0) {
-          const workOrder = await prisma.workOrder.findUnique({
-            where: { id: params.id },
-            select: { status: true },
-          })
-          if (workOrder?.status === "MATERIAL_REVIEW") {
-            await prisma.workOrder.update({
-              where: { id: params.id },
-              data: { status: "READY_FOR_PRODUCTION" },
-            })
-            await prisma.activityHistory.create({
+
+        const actionLabel = status === "APPROVED" ? "MATERIAL_APPROVED" : "MATERIAL_REJECTED"
+        await tx.activityHistory.create({
+          data: {
+            workOrderId: params.id, userId: user.userId,
+            action: actionLabel,
+            description: `Material "${material.materialName}" ${status.toLowerCase()} by ${currentUser.name}`,
+          },
+        })
+
+        if (status === "APPROVED") {
+          const expenseAmount = material.estimatedCost || material.actualCost || 0
+          if (expenseAmount > 0) {
+            await tx.expense.create({
               data: {
-                workOrderId: params.id, userId: user.userId, action: "STATUS_CHANGED",
-                description: `Work order moved to Ready For Production after all materials approved by ${currentUser.name}`,
+                workOrderId: params.id,
+                category: "MATERIAL",
+                amount: expenseAmount,
+                description: `Material: ${material.materialName}${material.category ? ` (${material.category})` : ""}`,
+                approvedById: user.userId,
               },
             })
+
+            const totalExpenses = await tx.expense.aggregate({
+              where: { workOrderId: params.id },
+              _sum: { amount: true },
+            })
+            await tx.workOrder.update({
+              where: { id: params.id },
+              data: { totalCost: totalExpenses._sum.amount || 0 },
+            })
+          }
+
+          await deductInventoryForMaterial(tx, material, user.userId)
+
+          const remaining = await tx.workOrderMaterial.findMany({
+            where: { workOrderId: params.id, status: { notIn: ["APPROVED", "REJECTED"] } },
+          })
+          if (remaining.length === 0) {
+            const workOrder = await tx.workOrder.findUnique({
+              where: { id: params.id },
+              select: { status: true },
+            })
+            if (workOrder?.status === "MATERIAL_REVIEW") {
+              await tx.workOrder.update({
+                where: { id: params.id },
+                data: { status: "READY_FOR_PRODUCTION" },
+              })
+              await tx.activityHistory.create({
+                data: {
+                  workOrderId: params.id, userId: user.userId, action: "STATUS_CHANGED",
+                  description: `Work order moved to Ready For Production after all materials approved by ${currentUser.name}`,
+                },
+              })
+            }
           }
         }
-      }
 
-      return NextResponse.json({ material })
+        return { material }
+      })
+
+      return NextResponse.json(result)
     }
 
     return NextResponse.json({ message: "Invalid request" }, { status: 400 })

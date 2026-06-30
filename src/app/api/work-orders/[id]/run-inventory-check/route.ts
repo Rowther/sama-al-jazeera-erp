@@ -24,76 +24,39 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
       for (const mat of materials) {
         const normalizedName = mat.materialName.toLowerCase().trim()
-        const matchingItems = allInventory.filter((item) =>
-          item.name.toLowerCase().includes(normalizedName) ||
-          normalizedName.includes(item.name.toLowerCase()) ||
-          (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase())
-        )
+        const nameWords = normalizedName.split(/\s+/)
+
+        const matchingItems = allInventory.filter((item) => {
+          const itemName = item.name.toLowerCase().trim()
+          const itemWords = itemName.split(/\s+/)
+          const sharedWords = nameWords.filter(w => itemWords.includes(w))
+          const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+          if (matchRatio >= 0.5) return true
+          if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
+            const catShared = nameWords.filter(w => itemWords.includes(w))
+            return catShared.length > 0
+          }
+          return false
+        })
 
         const totalAvailable = matchingItems.reduce((sum, item) => sum + item.stockQuantity, 0)
         const requiredQty = mat.requiredQuantity
 
         let status: string
         let availableQty = 0
-        let reservedQty = 0
         let missingQty = 0
 
         if (totalAvailable >= requiredQty) {
           status = "AVAILABLE"
           availableQty = requiredQty
-          reservedQty = requiredQty
           missingQty = 0
-
-          let remaining = requiredQty
-          for (const item of matchingItems) {
-            const reserveQty = Math.min(item.stockQuantity, remaining)
-            if (reserveQty <= 0) continue
-            remaining -= reserveQty
-
-            await tx.inventoryMovement.create({
-              data: {
-                itemId: item.id,
-                type: "RESERVED",
-                quantity: reserveQty,
-                referenceId: params.id,
-                referenceType: "WORK_ORDER",
-                notes: `Reserved for work order materials: ${mat.materialName}`,
-                createdById: user.userId,
-              },
-            })
-            await tx.inventoryItem.update({
-              where: { id: item.id },
-              data: { stockQuantity: { decrement: reserveQty } },
-            })
-          }
         } else if (totalAvailable > 0) {
           status = "PARTIALLY_AVAILABLE"
           availableQty = totalAvailable
-          reservedQty = totalAvailable
           missingQty = requiredQty - totalAvailable
-
-          for (const item of matchingItems) {
-            if (item.stockQuantity <= 0) continue
-            await tx.inventoryMovement.create({
-              data: {
-                itemId: item.id,
-                type: "RESERVED",
-                quantity: item.stockQuantity,
-                referenceId: params.id,
-                referenceType: "WORK_ORDER",
-                notes: `Partially reserved for: ${mat.materialName}`,
-                createdById: user.userId,
-              },
-            })
-            await tx.inventoryItem.update({
-              where: { id: item.id },
-              data: { stockQuantity: 0 },
-            })
-          }
         } else {
           status = "OUT_OF_STOCK"
           availableQty = 0
-          reservedQty = 0
           missingQty = requiredQty
         }
 
@@ -102,7 +65,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           data: {
             status: status as any,
             availableQuantity: availableQty,
-            reservedQuantity: reservedQty,
             missingQuantity: missingQty,
           },
         })
@@ -112,9 +74,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           status,
           requiredQuantity: requiredQty,
           availableQuantity: availableQty,
-          reservedQuantity: reservedQty,
           missingQuantity: missingQty,
-          inventoryMatches: matchingItems.map((i) => ({ id: i.id, name: i.name, stock: i.stockQuantity })),
+          inventoryMatches: matchingItems.map((i) => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit })),
         })
       }
 
@@ -138,10 +99,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
         const missingItems = results
           .filter((r: { missingQuantity: number }) => r.missingQuantity > 0)
-          .map((r: { materialName: string; missingQuantity: number }) => ({
+          .map((r: { materialName: string; missingQuantity: number; inventoryMatches: any[] }) => ({
             name: r.materialName,
             quantity: r.missingQuantity,
-            unit: "pcs",
+            unit: r.inventoryMatches?.[0]?.unit || "pcs",
           }))
 
         const mrCount = await tx.materialRequest.count()

@@ -10,8 +10,9 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { Modal } from "@/components/ui/modal"
 import { formatCurrency } from "@/lib/utils"
-import { Package, AlertTriangle, ShoppingCart, TrendingUp, PlusCircle, BarChart3, PackagePlus, Calendar } from "lucide-react"
+import { Package, AlertTriangle, ShoppingCart, TrendingUp, PlusCircle, BarChart3, PackagePlus, Calendar, MessageSquare } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
@@ -152,23 +153,42 @@ export default function InventoryManagerDashboard() {
           <p className="text-xs text-gray-400">Select a work order and add the required materials. Materials will be linked to the work order for inventory tracking.</p>
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Select Work Order</label>
-            <Select
-              options={allWorkOrders.map((wo: any) => ({
-                value: wo.id,
-                label: `${wo.workOrderId} - ${wo.customer?.name || "N/A"} (${wo.status?.replace(/_/g, " ")})`,
-              }))}
+            <select
+              className="flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem] bg-[right_0.5rem_center] bg-no-repeat pr-10"
               value={selectedWoId}
               onChange={(e) => setSelectedWoId(e.target.value)}
-              placeholder="Choose a work order..."
-            />
+            >
+              <option value="">Choose a work order...</option>
+              {allWorkOrders.map((wo: any) => (
+                <option key={wo.id} value={wo.id}>
+                  {wo.workOrderId} - {wo.customer?.name || "N/A"} ({wo.status?.replace(/_/g, " ")})
+                </option>
+              ))}
+            </select>
           </div>
           {selectedWoId && (
-            <div className="p-4 rounded-xl bg-gray-50 border border-gray-200 space-y-4">
-              <p className="text-sm font-semibold text-gray-700">Material Details</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="space-y-1 relative">
-                  <label className="text-xs text-gray-500">Material Name *</label>
-                  <Input value={materialForm.materialName} onChange={(e) => { setMaterialSelected(false); setMaterialForm({ ...materialForm, materialName: e.target.value }) }} placeholder="e.g., MDF Board" />
+            <div className="p-5 rounded-xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 shadow-sm space-y-4">
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
+                <div className="h-8 w-8 rounded-lg bg-[#4F8EF7]/10 flex items-center justify-center">
+                  <PackagePlus className="h-4 w-4 text-[#4F8EF7]" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-700">Material Details</p>
+                  <p className="text-xs text-gray-400">Fill in the material information below</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-1.5 relative">
+                  <label className="text-xs font-medium text-gray-600">Material Name *</label>
+                  <div className="relative">
+                    <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      className="flex h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200"
+                      value={materialForm.materialName}
+                      onChange={(e) => { setMaterialSelected(false); setMaterialForm({ ...materialForm, materialName: e.target.value }) }}
+                      placeholder="e.g., MDF Board"
+                    />
+                  </div>
                   {!materialSelected && debouncedMaterialSearch && (
                     <>
                       {materialSearching && searchResults.length === 0 && (
@@ -182,7 +202,7 @@ export default function InventoryManagerDashboard() {
                             <button
                               key={item.id}
                               type="button"
-                              className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between"
+                              className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0 flex items-center justify-between transition-colors"
                               onClick={() => {
                               setMaterialSelected(true)
                               setMaterialForm({
@@ -195,59 +215,133 @@ export default function InventoryManagerDashboard() {
                               })
                               }}
                             >
-                              <div>
-                                <span className="font-medium text-gray-900">{item.name}</span>
-                                {item.category?.name && (
-                                  <span className="text-gray-400 ml-2 text-xs">({item.category.name})</span>
-                                )}
+                              <div className="flex items-center gap-2">
+                                <div className="h-6 w-6 rounded bg-[#4F8EF7]/10 flex items-center justify-center">
+                                  <Package className="h-3 w-3 text-[#4F8EF7]" />
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-900">{item.name}</span>
+                                  {item.category?.name && (
+                                    <span className="text-gray-400 ml-2 text-xs">({item.category.name})</span>
+                                  )}
+                                </div>
                               </div>
-                              <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                                Stock: {item.stockQuantity} {item.unit}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                                  item.stockQuantity > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                                }`}>
+                                  {item.stockQuantity} {item.unit}
+                                </span>
+                              </div>
                             </button>
                           ))}
                         </div>
                       )}
                       {!materialSearching && searchResults.length === 0 && (
-                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
+                        <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-4 text-sm text-gray-400 text-center">
+                          <Package className="h-6 w-6 mx-auto mb-1 text-gray-300" />
                           No matching items in inventory
                         </div>
                       )}
                     </>
                   )}
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Category</label>
-                  <Select options={[...INVENTORY_CATEGORIES].map((c) => ({ value: c, label: c }))} value={materialForm.category} onChange={(e) => setMaterialForm({ ...materialForm, category: e.target.value })} placeholder="Select" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Category</label>
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem] bg-[right_0.5rem_center] bg-no-repeat pr-10"
+                    value={materialForm.category}
+                    onChange={(e) => setMaterialForm({ ...materialForm, category: e.target.value })}
+                  >
+                    <option value="">Select category</option>
+                    {[...INVENTORY_CATEGORIES].map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Qty *</label>
-                  <Input type="number" value={materialForm.requiredQuantity} onChange={(e) => setMaterialForm({ ...materialForm, requiredQuantity: e.target.value })} placeholder="0" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Quantity *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">#</span>
+                    <input
+                      type="number"
+                      className="flex h-10 w-full rounded-xl border border-gray-200 bg-white pl-8 pr-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200"
+                      value={materialForm.requiredQuantity}
+                      onChange={(e) => setMaterialForm({ ...materialForm, requiredQuantity: e.target.value })}
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Unit</label>
-                  <Select options={[{ value: "pcs", label: "Pieces" }, { value: "sqft", label: "Sq.Ft" }, { value: "m", label: "Meters" }, { value: "kg", label: "Kg" }, { value: "liters", label: "Liters" }, { value: "sheets", label: "Sheets" }, { value: "rolls", label: "Rolls" }, { value: "boxes", label: "Boxes" }]} value={materialForm.unit} onChange={(e) => setMaterialForm({ ...materialForm, unit: e.target.value })} />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Unit</label>
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem] bg-[right_0.5rem_center] bg-no-repeat pr-10"
+                    value={materialForm.unit}
+                    onChange={(e) => setMaterialForm({ ...materialForm, unit: e.target.value })}
+                  >
+                    <option value="pcs">Pieces</option>
+                    <option value="sqft">Sq.Ft</option>
+                    <option value="m">Meters</option>
+                    <option value="kg">Kg</option>
+                    <option value="liters">Liters</option>
+                    <option value="sheets">Sheets</option>
+                    <option value="rolls">Rolls</option>
+                    <option value="boxes">Boxes</option>
+                  </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Est. Cost (per unit)</label>
-                  <Input type="number" value={materialForm.estimatedCost} onChange={(e) => setMaterialForm({ ...materialForm, estimatedCost: e.target.value })} placeholder="0.00" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Est. Cost (per unit)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      className="flex h-10 w-full rounded-xl border border-gray-200 bg-white pl-8 pr-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200"
+                      value={materialForm.estimatedCost}
+                      onChange={(e) => setMaterialForm({ ...materialForm, estimatedCost: e.target.value })}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Supplier Preference</label>
-                  <Input value={materialForm.supplierPreference} onChange={(e) => setMaterialForm({ ...materialForm, supplierPreference: e.target.value })} placeholder="Supplier name" />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Supplier Preference</label>
+                  <div className="relative">
+                    <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      className="flex h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200"
+                      value={materialForm.supplierPreference}
+                      onChange={(e) => setMaterialForm({ ...materialForm, supplierPreference: e.target.value })}
+                      placeholder="Supplier name"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Priority</label>
-                  <Select options={PRIORITIES.map((p: any) => ({ value: p.value, label: p.label }))} value={materialForm.priority} onChange={(e) => setMaterialForm({ ...materialForm, priority: e.target.value })} />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Priority</label>
+                  <select
+                    className="flex h-10 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200 appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem] bg-[right_0.5rem_center] bg-no-repeat pr-10"
+                    value={materialForm.priority}
+                    onChange={(e) => setMaterialForm({ ...materialForm, priority: e.target.value })}
+                  >
+                    {PRIORITIES.map((p: any) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
                 </div>
-                <div className="space-y-1">
-                  <label className="text-xs text-gray-500">Notes</label>
-                  <Input value={materialForm.notes} onChange={(e) => setMaterialForm({ ...materialForm, notes: e.target.value })} placeholder="Any notes..." />
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-gray-600">Notes</label>
+                  <div className="relative">
+                    <MessageSquare className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <input
+                      className="flex h-10 w-full rounded-xl border border-gray-200 bg-white pl-9 pr-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 transition-all duration-200"
+                      value={materialForm.notes}
+                      onChange={(e) => setMaterialForm({ ...materialForm, notes: e.target.value })}
+                      placeholder="Any notes..."
+                    />
+                  </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
                 <Button variant="outline" size="sm" onClick={() => setSelectedWoId("")}>Cancel</Button>
                 <Button size="sm" onClick={handleAddMaterial} disabled={addMaterialMutation.isPending || !materialForm.materialName || !materialForm.requiredQuantity}>
                   <PlusCircle className="h-4 w-4 mr-1" /> {addMaterialMutation.isPending ? "Adding..." : "Add Material"}

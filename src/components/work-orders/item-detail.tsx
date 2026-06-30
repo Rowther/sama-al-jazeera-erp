@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import {
   Package, AlertTriangle, CheckCircle2, Users, Layers,
   ClipboardList, DollarSign, CreditCard, X, User,
-  Clock, HardHat,
+  Clock, HardHat, Calendar, MessageSquare,
 } from "lucide-react"
 import type { WorkOrderItem } from "@/types"
 
@@ -17,6 +17,7 @@ interface ItemDetailProps {
   workOrderId: string
   labourUsers: any[]
   onClose: () => void
+  onItemUpdate?: () => void
 }
 
 const statusBadgeVariant: Record<string, "default" | "primary" | "success" | "warning" | "danger"> = {
@@ -106,6 +107,40 @@ export function ItemDetail({ item, workOrderId, labourUsers, onClose }: ItemDeta
           <div className="p-3 rounded-xl bg-gray-50">
             <p className="text-xs text-gray-500 mb-1">Description</p>
             <p className="text-sm text-gray-700">{(item as any).description}</p>
+          </div>
+        )}
+
+        {/* Assigned Labourer */}
+        {(item.assignedLabourer || item.expectedCompletionDate) && (
+          <div className="grid grid-cols-2 gap-3">
+            {item.assignedLabourer && (
+              <div className="p-3 rounded-xl bg-gray-50">
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <User className="h-3 w-3" /> Assigned Labourer
+                </p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{item.assignedLabourer.name}</p>
+              </div>
+            )}
+            {item.expectedCompletionDate && (
+              <div className="p-3 rounded-xl bg-gray-50">
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> Expected Completion
+                </p>
+                <p className={`text-sm font-semibold mt-1 ${item.isDelayed ? "text-[#F45D5D]" : "text-gray-900"}`}>
+                  {formatDate(item.expectedCompletionDate)}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delay Reason */}
+        {item.delayReason && (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-100">
+            <p className="text-xs text-[#F45D5D] flex items-center gap-1 mb-1">
+              <MessageSquare className="h-3 w-3" /> Delay Reason
+            </p>
+            <p className="text-sm text-gray-700">{item.delayReason}</p>
           </div>
         )}
 
