@@ -47,6 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           priority: mat.priority || "MEDIUM",
           notes: mat.notes,
           status: "PENDING",
+          inventoryItemId: mat.inventoryItemId || undefined,
         },
       })
       created.push(material)
@@ -73,21 +74,44 @@ async function deductInventoryForMaterial(tx: any, material: any, userId: string
     include: { category: true },
   })
 
-  const normalizedName = material.materialName.toLowerCase().trim()
-  const nameWords = normalizedName.split(/\s+/)
+  let matchingItems: any[] = []
 
-  const matchingItems = allInventory.filter((item: any) => {
-    const itemName = item.name.toLowerCase().trim()
-    const itemWords = itemName.split(/\s+/)
-    const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
-    const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
-    if (matchRatio >= 0.5) return true
-    if (material.category && item.category?.name?.toLowerCase() === material.category.toLowerCase()) {
-      const catShared = nameWords.filter((w: string) => itemWords.includes(w))
-      return catShared.length > 0
-    }
-    return false
-  })
+  if (material.inventoryItemId) {
+    const directItem = allInventory.find((i: any) => i.id === material.inventoryItemId)
+    if (directItem) matchingItems = [directItem]
+  }
+
+  if (matchingItems.length === 0) {
+    const normalizedName = material.materialName.toLowerCase().trim()
+
+    // Try SKU match first
+    matchingItems = allInventory.filter((item: any) => {
+      const itemSku = item.sku?.toLowerCase().trim()
+      return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
+    })
+  }
+
+  if (matchingItems.length === 0) {
+    const normalizedName = material.materialName.toLowerCase().trim()
+    const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
+
+    matchingItems = allInventory.filter((item: any) => {
+      const itemName = item.name.toLowerCase().trim()
+      const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
+
+      if (itemName === normalizedName) return true
+      if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
+
+      const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
+      const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+      if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
+      if (material.category && item.category?.name?.toLowerCase() === material.category.toLowerCase()) {
+        const catShared = nameWords.filter((w: string) => itemWords.includes(w))
+        return catShared.length >= 2
+      }
+      return false
+    })
+  }
 
   let remaining = material.requiredQuantity
   for (const item of matchingItems) {

@@ -26,8 +26,17 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "PRODUCTION_MANAGER"])
+    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER"])
     if (error) return error
+
+    const order = await prisma.workOrder.findUnique({
+      where: { id: params.id },
+      select: { status: true },
+    })
+    if (!order) return NextResponse.json({ message: "Work order not found" }, { status: 404 })
+    if (order.status !== "IN_PRODUCTION" && order.status !== "PRODUCTION_STARTED") {
+      return NextResponse.json({ message: "Workers can only be assigned when production is started" }, { status: 400 })
+    }
 
     const data = await request.json()
     const workers = Array.isArray(data) ? data : [data]
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "PRODUCTION_MANAGER"])
+    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER"])
     if (error) return error
 
     const data = await request.json()

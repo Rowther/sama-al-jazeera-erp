@@ -536,6 +536,9 @@ model WorkOrderMaterial {
   missingQuantity   Float          @default(0)
   status            MaterialStatus @default(PENDING)
 
+  inventoryItemId   String?
+  inventoryItem     InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+
   purchaseEntryItems PurchaseEntryItem[]
 
   createdAt         DateTime       @default(now())
@@ -544,6 +547,7 @@ model WorkOrderMaterial {
   @@index([workOrderId])
   @@index([workOrderItemId])
   @@index([status])
+  @@index([inventoryItemId])
 }
 
 model PurchaseEntry {
@@ -679,6 +683,7 @@ model InventoryItem {
 
   movements       InventoryMovement[]
   allocations     WorkOrderInventory[]
+  workOrderMaterials WorkOrderMaterial[]
 
   @@index([categoryId])
   @@index([supplierId])

@@ -156,7 +156,7 @@ export default function WorkOrderDetailPage() {
   const [showAddMaterial, setShowAddMaterial] = useState(false)
   const [newMaterial, setNewMaterial] = useState({
     materialName: "", category: "", requiredQuantity: "", unit: "pcs",
-    estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "",
+    estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "", inventoryItemId: "",
   })
   const [materialItemId, setMaterialItemId] = useState("")
   const [materialSelected, setMaterialSelected] = useState(false)
@@ -190,7 +190,7 @@ export default function WorkOrderDetailPage() {
       toast.success("Materials added")
       setShowAddMaterial(false)
       setMaterialItemId("")
-      setNewMaterial({ materialName: "", category: "", requiredQuantity: "", unit: "pcs", estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "" })
+      setNewMaterial({ materialName: "", category: "", requiredQuantity: "", unit: "pcs", estimatedCost: "", supplierPreference: "", priority: "MEDIUM", notes: "", inventoryItemId: "" })
       queryClient.invalidateQueries({ queryKey: ["work-order-materials", params.id] })
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
       inventoryCheckMutation.mutate()
@@ -490,15 +490,17 @@ export default function WorkOrderDetailPage() {
         workOrderItems={workOrderItems}
       />
 
-      <LaborCostTracking
-        workOrderId={wo.id}
-        workers={wo.workerAssignments || []}
-        labourUsers={labourUsers}
-        stages={wo.productionStages || []}
-        currentStatus={wo.status}
-        estimatedLaborCost={wo.estimatedLaborCost}
-        workOrderItems={workOrderItems}
-      />
+      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
+        <LaborCostTracking
+          workOrderId={wo.id}
+          workers={wo.workerAssignments || []}
+          labourUsers={labourUsers}
+          stages={wo.productionStages || []}
+          currentStatus={wo.status}
+          estimatedLaborCost={wo.estimatedLaborCost}
+          workOrderItems={workOrderItems}
+        />
+      )}
 
       <DigitalSignaturePanel
         workOrderId={wo.id}
@@ -771,6 +773,7 @@ export default function WorkOrderDetailPage() {
                                     unit: item.unit || "pcs",
                                     estimatedCost: String(item.price || ""),
                                     requiredQuantity: "1",
+                                    inventoryItemId: item.id,
                                   })
                                 }}
                               >
@@ -848,6 +851,7 @@ export default function WorkOrderDetailPage() {
                     supplierPreference: newMaterial.supplierPreference,
                     priority: newMaterial.priority,
                     notes: newMaterial.notes,
+                    inventoryItemId: newMaterial.inventoryItemId || undefined,
                     workOrderItemId: materialItemId || undefined,
                   }])} disabled={addMaterialMutation.isPending || !newMaterial.materialName || !newMaterial.requiredQuantity}>
                     <PackagePlus className="h-4 w-4 mr-1" /> {addMaterialMutation.isPending ? "Adding..." : "Add to Work Order"}

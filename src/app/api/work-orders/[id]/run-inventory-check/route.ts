@@ -23,23 +23,50 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const results = []
 
       for (const mat of materials) {
-        const normalizedName = mat.materialName.toLowerCase().trim()
-        const nameWords = normalizedName.split(/\s+/)
+        let totalAvailable = 0
+        let matchingItems: any[] = []
 
-        const matchingItems = allInventory.filter((item) => {
-          const itemName = item.name.toLowerCase().trim()
-          const itemWords = itemName.split(/\s+/)
-          const sharedWords = nameWords.filter(w => itemWords.includes(w))
-          const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
-          if (matchRatio >= 0.5) return true
-          if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
-            const catShared = nameWords.filter(w => itemWords.includes(w))
-            return catShared.length > 0
+        if (mat.inventoryItemId) {
+          const directItem = allInventory.find(i => i.id === mat.inventoryItemId)
+          if (directItem) {
+            matchingItems = [directItem]
+            totalAvailable = directItem.stockQuantity
           }
-          return false
-        })
+        }
 
-        const totalAvailable = matchingItems.reduce((sum, item) => sum + item.stockQuantity, 0)
+        if (!mat.inventoryItemId || matchingItems.length === 0) {
+          const normalizedName = mat.materialName.toLowerCase().trim()
+
+          // Try SKU match first
+          matchingItems = allInventory.filter((item) => {
+            const itemSku = item.sku?.toLowerCase().trim()
+            return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
+          })
+
+          if (matchingItems.length === 0) {
+            const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 1)
+
+            matchingItems = allInventory.filter((item) => {
+              const itemName = item.name.toLowerCase().trim()
+              const itemWords = itemName.split(/\s+/).filter(w => w.length > 1)
+
+              if (itemName === normalizedName) return true
+              if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
+
+              const sharedWords = nameWords.filter(w => itemWords.includes(w))
+              const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+              if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
+              if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
+                const catShared = nameWords.filter(w => itemWords.includes(w))
+                return catShared.length >= 2
+              }
+              return false
+            })
+          }
+
+          totalAvailable = matchingItems.reduce((sum, item) => sum + item.stockQuantity, 0)
+        }
+
         const requiredQty = mat.requiredQuantity
 
         let status: string

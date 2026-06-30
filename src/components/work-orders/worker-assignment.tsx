@@ -34,8 +34,8 @@ export function WorkerAssignment({ workOrderId, workers, labourUsers, currentSta
   const [showLateComment, setShowLateComment] = useState<string | null>(null)
   const [lateComment, setLateComment] = useState("")
 
-  const canAssign = (user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "PRODUCTION_MANAGER") &&
-    currentStatus !== "DELIVERED" && currentStatus !== "CLOSED" && currentStatus !== "CANCELLED"
+  const canAssign = (user?.role === "OWNER" || user?.role === "MANAGER") &&
+    (currentStatus === "IN_PRODUCTION" || currentStatus === "PRODUCTION_STARTED")
 
   const assignMutation = useMutation({
     mutationFn: (data: { userId: string; role: string; workOrderItemId?: string }) =>
