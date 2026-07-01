@@ -2,12 +2,12 @@ const API_BASE = '/api'
 
 function getToken(): string | null {
   if (typeof window === 'undefined') return null
-  return sessionStorage.getItem('token') || localStorage.getItem('token')
+  return localStorage.getItem('token')
 }
 
 function getSessionId(): string | null {
   if (typeof window === 'undefined') return null
-  return sessionStorage.getItem('sessionId')
+  return localStorage.getItem('sessionId')
 }
 
 export async function apiClient<T = any>(

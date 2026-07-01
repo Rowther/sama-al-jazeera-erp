@@ -11,7 +11,7 @@ export interface User {
   phone?: string
 }
 
-const storage = typeof window !== 'undefined' ? sessionStorage : null
+const storage = typeof window !== 'undefined' ? localStorage : null
 
 function decodeJWTPayload(token: string): { userId: string; email: string; role: string; exp?: number } | null {
   try {
