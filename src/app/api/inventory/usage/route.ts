@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const movements = await prisma.inventoryMovement.findMany({
     where: {
-      type: { in: ["RESERVED", "OUT"] },
+      type: "OUT",
       createdAt: { gte: startDate },
     },
     include: {

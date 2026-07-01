@@ -115,6 +115,12 @@ export default function MaterialAnalysisPage() {
     onError: (err: any) => toast.error(err.message),
   })
 
+  const { data: workOrdersData } = useQuery({
+    queryKey: ["work-orders", "all"],
+    queryFn: () => api.get<any>("/work-orders"),
+  })
+  const allWorkOrders = workOrdersData?.workOrders || []
+
   if (!workOrderId) {
     return (
       <div className="space-y-6 animate-fade-in max-w-4xl mx-auto">
@@ -124,7 +130,21 @@ export default function MaterialAnalysisPage() {
           </Button>
           <h1 className="text-2xl font-bold text-gray-900">Material Analysis</h1>
         </div>
-        <Card><CardContent className="p-12 text-center text-gray-400">Select a work order to analyze materials</CardContent></Card>
+        <Card>
+          <CardContent className="p-8 space-y-4">
+            <p className="text-sm text-gray-500 text-center">Select a work order to analyze materials</p>
+            <select
+              className="flex h-11 w-full max-w-md mx-auto rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] appearance-none bg-[url('data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2224%22%20height%3D%2224%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%239CA3AF%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%209%206%206%206-6%22%2F%3E%3C%2Fsvg%3E')] bg-[length:1.5rem] bg-[right_0.5rem_center] bg-no-repeat pr-10"
+              value=""
+              onChange={(e) => { if (e.target.value) router.push(`/dashboard/inventory-manager/analysis?workOrderId=${e.target.value}`) }}
+            >
+              <option value="">Choose a work order...</option>
+              {allWorkOrders.map((wo: any) => (
+                <option key={wo.id} value={wo.id}>{wo.workOrderId} - {wo.customer?.name || "N/A"} ({wo.status?.replace(/_/g, " ")})</option>
+              ))}
+            </select>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -142,6 +162,9 @@ export default function MaterialAnalysisPage() {
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => router.push("/dashboard/inventory-manager/analysis")}>
+            <Search className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">Change Work Order</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => router.push(`/work-orders/${workOrderId}`)}>
             <Eye className="h-4 w-4 sm:mr-1" /> <span className="hidden xs:inline">View Work Order</span>
           </Button>
