@@ -19,13 +19,15 @@ export const metadata: Metadata = {
   publisher: "DataStream",
   keywords: ["ERP software UAE", "CRM platform", "work order management", "multi-tenant CRM", "business management software", "enterprise resource planning", "Dubai ERP", "UAE business software", "cloud ERP", "client management", "employee management"],
   robots: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+  verification: {
+    google: "BHNsI5efhbmHLx0qFa5Fh74XaezIYyuR96DkbBRxX4s",
+  },
   other: {
     "language": "English",
     "revisit-after": "7 days",
     "rating": "general",
     "geo.region": "AE",
     "geo.placename": "United Arab Emirates",
-    "google-site-verification": "BHNsI5efhbmHLx0qFa5Fh74XaezIYyuR96DkbBRxX4s",
     "theme-color": "#3b82f6",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": siteName,
