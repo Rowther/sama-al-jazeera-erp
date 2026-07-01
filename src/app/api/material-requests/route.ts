@@ -15,10 +15,6 @@ export async function GET(request: NextRequest) {
     if (status) where.status = status
     if (workOrderId) where.workOrderId = workOrderId
 
-    if (user.role === "INVENTORY_MANAGER") {
-      where.requestedById = user.userId
-    }
-
     const requests = await prisma.materialRequest.findMany({
       where,
       include: {

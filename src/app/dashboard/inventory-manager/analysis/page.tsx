@@ -60,9 +60,15 @@ export default function MaterialAnalysisPage() {
   const materials = materialsData?.materials || []
   const suppliers = suppliersData?.suppliers || []
 
-  const availableMaterials = materials.filter((m: any) => m.status === "AVAILABLE" || m.status === "PARTIALLY_AVAILABLE")
-  const missingMaterials = materials.filter((m: any) => m.status === "OUT_OF_STOCK" || m.status === "PARTIALLY_AVAILABLE" || m.status === "PENDING")
-  const totalEstimatedMissing = missingMaterials.reduce((s: number, m: any) => s + (m.estimatedCost * m.missingQuantity), 0)
+  const availableMaterials = materials.filter((m: any) => {
+    const s = m.computedStatus || m.status
+    return s === "AVAILABLE" || s === "PARTIALLY_AVAILABLE"
+  })
+  const missingMaterials = materials.filter((m: any) => {
+    const s = m.computedStatus || m.status
+    return s === "OUT_OF_STOCK" || s === "PARTIALLY_AVAILABLE" || s === "PENDING"
+  })
+  const totalEstimatedMissing = missingMaterials.reduce((s: number, m: any) => s + (m.estimatedCost * (m.computedMissingQuantity ?? m.missingQuantity ?? m.requiredQuantity)), 0)
 
   const addItem = () => {
     if (!currentItem.materialName || !currentItem.quantity) return
@@ -195,17 +201,21 @@ export default function MaterialAnalysisPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {availableMaterials.map((mat: any) => (
-                      <tr key={mat.id} className="border-b border-gray-50">
-                        <td className="py-2 px-2 font-medium text-gray-900">{mat.materialName}</td>
-                        <td className="py-2 px-2">{mat.requiredQuantity} {mat.unit}</td>
-                        <td className="py-2 px-2 text-[#36B37E]">{mat.availableQuantity || 0}</td>
-                        <td className="py-2 px-2">{mat.reservedQuantity || 0}</td>
-                        <td className="py-2 px-2">
-                          <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{mat.status?.replace(/_/g, " ")}</span>
-                        </td>
-                      </tr>
-                    ))}
+                    {availableMaterials.map((mat: any) => {
+                      const av = mat.computedAvailableQuantity ?? mat.availableQuantity ?? 0
+                      const st = mat.computedStatus || mat.status
+                      return (
+                        <tr key={mat.id} className="border-b border-gray-50">
+                          <td className="py-2 px-2 font-medium text-gray-900">{mat.materialName}</td>
+                          <td className="py-2 px-2">{mat.requiredQuantity} {mat.unit}</td>
+                          <td className="py-2 px-2 text-[#36B37E]">{av}</td>
+                          <td className="py-2 px-2">{mat.reservedQuantity || 0}</td>
+                          <td className="py-2 px-2">
+                            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{st?.replace(/_/g, " ")}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -236,21 +246,25 @@ export default function MaterialAnalysisPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {missingMaterials.map((mat: any) => (
-                      <tr key={mat.id} className={`border-b border-gray-50 ${mat.status === "OUT_OF_STOCK" ? "bg-red-50" : "bg-yellow-50"}`}>
-                        <td className="py-2 px-2 font-medium text-gray-900">{mat.materialName}</td>
-                        <td className="py-2 px-2">{mat.requiredQuantity} {mat.unit}</td>
-                        <td className="py-2 px-2 text-[#F45D5D] font-semibold">{mat.missingQuantity || mat.requiredQuantity}</td>
-                        <td className="py-2 px-2">{formatCurrency((mat.estimatedCost || 0) * (mat.missingQuantity || mat.requiredQuantity))}</td>
-                        <td className="py-2 px-2">
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${
-                            mat.status === "OUT_OF_STOCK" ? "bg-red-100 text-red-700" :
-                            mat.status === "PARTIALLY_AVAILABLE" ? "bg-yellow-100 text-yellow-700" :
-                            "bg-gray-100 text-gray-600"
-                          }`}>{mat.status?.replace(/_/g, " ")}</span>
-                        </td>
-                      </tr>
-                    ))}
+                    {missingMaterials.map((mat: any) => {
+                      const st = mat.computedStatus || mat.status
+                      const mq = mat.computedMissingQuantity ?? mat.missingQuantity ?? mat.requiredQuantity
+                      return (
+                        <tr key={mat.id} className={`border-b border-gray-50 ${st === "OUT_OF_STOCK" ? "bg-red-50" : "bg-yellow-50"}`}>
+                          <td className="py-2 px-2 font-medium text-gray-900">{mat.materialName}</td>
+                          <td className="py-2 px-2">{mat.requiredQuantity} {mat.unit}</td>
+                          <td className="py-2 px-2 text-[#F45D5D] font-semibold">{mq}</td>
+                          <td className="py-2 px-2">{formatCurrency((mat.estimatedCost || 0) * mq)}</td>
+                          <td className="py-2 px-2">
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${
+                              st === "OUT_OF_STOCK" ? "bg-red-100 text-red-700" :
+                              st === "PARTIALLY_AVAILABLE" ? "bg-yellow-100 text-yellow-700" :
+                              "bg-gray-100 text-gray-600"
+                            }`}>{st?.replace(/_/g, " ")}</span>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>

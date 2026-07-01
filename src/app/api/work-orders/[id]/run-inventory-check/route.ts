@@ -107,6 +107,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         })
 
         results.push({
+          id: mat.id,
           materialName: mat.materialName,
           status,
           requiredQuantity: requiredQty,
@@ -136,10 +137,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
         const missingItems = results
           .filter((r: { missingQuantity: number }) => r.missingQuantity > 0)
-          .map((r: { materialName: string; missingQuantity: number; inventoryMatches: any[] }) => ({
+          .map((r: any) => ({
             name: r.materialName,
             quantity: r.missingQuantity,
             unit: r.inventoryMatches?.[0]?.unit || "pcs",
+            workOrderMaterialId: r.id,
           }))
 
         const mrCount = await tx.materialRequest.count()

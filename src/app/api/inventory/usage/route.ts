@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const movements = await prisma.inventoryMovement.findMany({
     where: {
-      type: "RESERVED",
+      type: { in: ["RESERVED", "OUT"] },
       createdAt: { gte: startDate },
     },
     include: {
@@ -33,6 +33,12 @@ export async function GET(request: NextRequest) {
     },
     orderBy: { createdAt: "desc" },
   })
+
+  const woIds = [...new Set(movements.filter(m => m.referenceType === "WORK_ORDER" && m.referenceId).map(m => m.referenceId!))]
+  const workOrders = woIds.length > 0
+    ? await prisma.workOrder.findMany({ where: { id: { in: woIds } }, select: { id: true, workOrderId: true, customer: { select: { name: true } } } })
+    : []
+  const woMap = new Map(workOrders.map(wo => [wo.id, wo]))
 
   const groups: Record<string, { itemId: string; itemName: string; unit: string; category: string; periods: Record<string, { total: number; count: number; movements: any[] }> }> = {}
 
@@ -60,11 +66,13 @@ export async function GET(request: NextRequest) {
     }
     groups[key].periods[periodKey].total += m.quantity
     groups[key].periods[periodKey].count += 1
+    const wo = m.referenceType === "WORK_ORDER" && m.referenceId ? woMap.get(m.referenceId) : undefined
     groups[key].periods[periodKey].movements.push({
       id: m.id,
       quantity: m.quantity,
       referenceId: m.referenceId,
       referenceType: m.referenceType,
+      workOrderRef: wo ? { id: wo.id, workOrderId: wo.workOrderId, customerName: wo.customer?.name } : undefined,
       notes: m.notes,
       createdBy: m.createdBy.name,
       createdAt: m.createdAt,

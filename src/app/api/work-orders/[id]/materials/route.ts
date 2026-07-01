@@ -18,7 +18,63 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       orderBy: { createdAt: "asc" },
     })
 
-    return NextResponse.json({ materials })
+    const allInventory = await prisma.inventoryItem.findMany({ include: { category: true } })
+
+    const enriched = materials.map(mat => {
+      const normalizedName = mat.materialName.toLowerCase().trim()
+      let matchingItems: any[] = []
+      const seen = new Set<string>()
+
+      if (mat.inventoryItemId) {
+        const directItem = allInventory.find(i => i.id === mat.inventoryItemId)
+        if (directItem) { matchingItems.push(directItem); seen.add(directItem.id) }
+      }
+
+      const skuMatches = allInventory.filter(item => {
+        if (seen.has(item.id)) return false
+        const itemSku = item.sku?.toLowerCase().trim()
+        return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
+      })
+      for (const item of skuMatches) { matchingItems.push(item); seen.add(item.id) }
+
+      if (skuMatches.length === 0) {
+        const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
+        const nameMatches = allInventory.filter(item => {
+          if (seen.has(item.id)) return false
+          const itemName = item.name.toLowerCase().trim()
+          const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
+          if (itemName === normalizedName) return true
+          if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
+          const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
+          const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+          if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
+          if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
+            const catShared = nameWords.filter((w: string) => itemWords.includes(w))
+            return catShared.length >= 2
+          }
+          return false
+        })
+        for (const item of nameMatches) { matchingItems.push(item); seen.add(item.id) }
+      }
+
+      const totalAvailable = matchingItems.reduce((sum, item) => sum + item.stockQuantity, 0)
+      const requiredQty = mat.requiredQuantity
+      let status: string
+      let availableQty = 0
+      let missingQty = 0
+
+      if (totalAvailable >= requiredQty) {
+        status = "AVAILABLE"; availableQty = requiredQty; missingQty = 0
+      } else if (totalAvailable > 0) {
+        status = "PARTIALLY_AVAILABLE"; availableQty = totalAvailable; missingQty = requiredQty - totalAvailable
+      } else {
+        status = "OUT_OF_STOCK"; availableQty = 0; missingQty = requiredQty
+      }
+
+      return { ...mat, computedStatus: status, computedAvailableQuantity: availableQty, computedMissingQuantity: missingQty, inventoryMatches: matchingItems.map(i => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit })) }
+    })
+
+    return NextResponse.json({ materials: enriched })
   } catch (error) {
     return NextResponse.json({ message: "Internal server error" }, { status: 500 })
   }

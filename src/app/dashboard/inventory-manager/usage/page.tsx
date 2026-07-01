@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select } from "@/components/ui/select"
 import { formatCurrency } from "@/lib/utils"
-import { Package, BarChart3, Calendar, ArrowLeft } from "lucide-react"
+import { Package, BarChart3, Calendar, ArrowLeft, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function InventoryUsagePage() {
@@ -48,6 +48,27 @@ export default function InventoryUsagePage() {
             value={period}
             onChange={(e) => { setPeriod(e.target.value); setPage(1) }}
           />
+          <Button variant="outline" size="sm" onClick={() => {
+            if (!usage.length) return
+            const rows = [["Material","Category","Unit",period === "daily" ? "Date" : period === "weekly" ? "Week" : "Month","Qty Used","Transactions","Reference","Notes"]]
+            for (const item of usage) {
+              const sortedKeys = Object.keys(item.periods).sort()
+              for (const pk of sortedKeys) {
+                const p = item.periods[pk]
+                for (const mv of p.movements) {
+                  rows.push([item.itemName,item.category,item.unit,pk,String(p.total),String(p.count),mv.referenceType || "",mv.notes || ""])
+                }
+              }
+            }
+            const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n")
+            const blob = new Blob([csv],{type:"text/csv"})
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement("a")
+            a.href = url; a.download = `inventory-usage-${period}.csv`; a.click()
+            URL.revokeObjectURL(url)
+          }} disabled={!usage.length}>
+            <Download className="h-4 w-4 mr-1" /> Export CSV
+          </Button>
         </div>
       </div>
 

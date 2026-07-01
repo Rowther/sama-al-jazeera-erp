@@ -10,18 +10,17 @@ export async function GET(request: NextRequest) {
     const [
       statusCounts,
       expensesAgg,
-      workOrdersAdvAgg,
-      generalIncomeAgg,
+      incomePaymentsAgg,
       employees,
       delayedCount,
       budgetOverruns,
       recentWorkOrders,
+      workOrderIncomes,
     ] = await Promise.all([
       prisma.workOrder.groupBy({ by: ["status"], _count: { id: true } }),
       prisma.expense.aggregate({ _sum: { amount: true } }),
-      prisma.workOrder.aggregate({ _sum: { advanceReceived: true } }),
       prisma.payment.aggregate({
-        where: { type: "INCOME", workOrderId: null },
+        where: { type: "INCOME" },
         _sum: { amount: true },
       }),
       prisma.employee.count(),
@@ -32,13 +31,19 @@ export async function GET(request: NextRequest) {
         take: 100,
       }),
       prisma.workOrder.findMany({
-        select: { workOrderId: true, totalCost: true, estimatedBudget: true, advanceReceived: true, profitMargin: true, status: true, costOverrun: true },
+        select: { id: true, workOrderId: true, totalCost: true, estimatedBudget: true, advanceReceived: true, finalPrice: true, profitMargin: true, status: true, costOverrun: true },
         orderBy: { createdAt: "desc" },
         take: 50,
       }),
+      prisma.payment.groupBy({
+        by: ["workOrderId"],
+        where: { type: "INCOME", workOrderId: { not: null } },
+        _sum: { amount: true },
+      }),
     ])
 
-    const totalRevenue = (workOrdersAdvAgg._sum.advanceReceived || 0) + (generalIncomeAgg._sum.amount || 0)
+    const incomeByWO = new Map(workOrderIncomes.map(p => [p.workOrderId, p._sum.amount || 0]))
+    const totalRevenue = incomePaymentsAgg._sum.amount || 0
     const totalCosts = expensesAgg._sum.amount || 0
     const totalWO = statusCounts.reduce((s, g) => s + g._count.id, 0)
     const completed = statusCounts
@@ -70,14 +75,14 @@ export async function GET(request: NextRequest) {
     ]
 
     const profitByWO = recentWorkOrders
-      .filter(wo => wo.advanceReceived > 0 || (wo.estimatedBudget && wo.estimatedBudget > 0))
+      .filter(wo => (incomeByWO.get(wo.id) || 0) > 0 || wo.finalPrice || (wo.estimatedBudget && wo.estimatedBudget > 0))
       .map(wo => ({
         workOrderId: wo.workOrderId,
         budget: wo.estimatedBudget || 0,
         actual: wo.totalCost,
-        revenue: wo.advanceReceived || 0,
+        revenue: incomeByWO.get(wo.id) || wo.advanceReceived || 0,
         cost: wo.totalCost,
-        profit: (wo.advanceReceived || 0) - wo.totalCost,
+        profit: (incomeByWO.get(wo.id) || wo.advanceReceived || 0) - wo.totalCost,
         margin: wo.profitMargin || 0,
         status: wo.status,
       }))

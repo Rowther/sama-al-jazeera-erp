@@ -73,6 +73,49 @@ export async function PATCH(
         },
       })
 
+      if (existing.workOrderId && existing.items) {
+        const items = existing.items as any[]
+        for (const item of items) {
+          if (item.workOrderMaterialId) {
+            await prisma.workOrderMaterial.update({
+              where: { id: item.workOrderMaterialId },
+              data: { status: "APPROVED" },
+            })
+          } else if (item.name && existing.workOrderId) {
+            const matched = await prisma.workOrderMaterial.findFirst({
+              where: {
+                workOrderId: existing.workOrderId,
+                materialName: { contains: item.name, mode: "insensitive" },
+                status: { notIn: ["APPROVED", "REJECTED"] },
+              },
+              orderBy: { createdAt: "desc" },
+            })
+            if (matched) {
+              await prisma.workOrderMaterial.update({
+                where: { id: matched.id },
+                data: { status: "APPROVED" },
+              })
+            }
+          }
+        }
+
+        const remaining = await prisma.workOrderMaterial.findMany({
+          where: { workOrderId: existing.workOrderId, status: { notIn: ["APPROVED", "REJECTED"] } },
+        })
+        if (remaining.length === 0) {
+          const wo = await prisma.workOrder.findUnique({
+            where: { id: existing.workOrderId },
+            select: { status: true },
+          })
+          if (wo?.status === "MATERIAL_REVIEW") {
+            await prisma.workOrder.update({
+              where: { id: existing.workOrderId },
+              data: { status: "READY_FOR_PRODUCTION" },
+            })
+          }
+        }
+      }
+
       await prisma.notification.create({
         data: {
           userId: existing.requestedById,
