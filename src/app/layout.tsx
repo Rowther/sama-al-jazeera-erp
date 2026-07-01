@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     "rating": "general",
     "geo.region": "AE",
     "geo.placename": "United Arab Emirates",
-    "google-site-verification": "BHNsI5efhbmHLx0qFa5Fh74XaezIYyuR96DkbBRxX4s",
+    "google-site-verification": "google11befcaadd7bbb9b",
     "theme-color": "#3b82f6",
     "apple-mobile-web-app-status-bar-style": "black-translucent",
     "apple-mobile-web-app-title": siteName,
@@ -64,6 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="canonical" href={siteUrl} />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
+        <meta name="google-site-verification" content="google11befcaadd7bbb9b" />
         <Script id="google-analytics" strategy="afterInteractive" src="https://www.googletagmanager.com/gtag/js?id=G-2R32MWEZ7S" />
         <Script id="google-analytics-init" strategy="afterInteractive">
           {`
