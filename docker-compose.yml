@@ -53,9 +53,7 @@ services:
         condition: service_healthy
     volumes:
       - uploads_data:/app/public/uploads
-      - data_uploads:/app/data/uploads
 
 volumes:
   postgres_data:
   uploads_data:
-  data_uploads:

@@ -3,7 +3,7 @@ import { readFile } from "fs/promises"
 import path from "path"
 import { existsSync } from "fs"
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads")
+const UPLOAD_DIR = path.resolve(process.env.UPLOADS_DIR || path.join(process.cwd(), "public", "uploads"))
 const LEGACY_UPLOAD_DIR = path.join(process.cwd(), "data", "uploads")
 
 export async function GET(

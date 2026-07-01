@@ -37,6 +37,8 @@ COPY scripts ./scripts
 
 RUN chown -R nextjs:nodejs /app/prisma /app/node_modules/.prisma /app/node_modules/prisma /app/node_modules/@prisma /app/node_modules/tsx /app/scripts
 
+RUN mkdir -p /app/public/uploads /app/data/uploads && chown -R nextjs:nodejs /app/public /app/data
+
 USER nextjs
 
 EXPOSE 3000

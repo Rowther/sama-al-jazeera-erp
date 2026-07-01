@@ -1,8 +1,13 @@
 import { execSync } from 'child_process'
-import { existsSync } from 'fs'
+import { existsSync, mkdirSync } from 'fs'
 import { PrismaClient } from '@prisma/client'
+import path from 'path'
 
 async function main() {
+  const uploadsDir = process.env.UPLOADS_DIR || path.join(process.cwd(), 'public', 'uploads')
+  mkdirSync(path.join(uploadsDir, 'designs'), { recursive: true })
+  console.log('[init] Upload directories ready')
+
   console.log('[init] Running prisma db push...')
   execSync('npx prisma db push', { stdio: 'inherit' })
 

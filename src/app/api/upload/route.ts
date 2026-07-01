@@ -3,6 +3,8 @@ import { getUserFromRequest } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), "public", "uploads")
+
 export async function POST(request: NextRequest) {
   const user = getUserFromRequest(request)
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
@@ -15,7 +17,7 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
-    const uploadDir = path.join(process.cwd(), "public", "uploads", "designs")
+    const uploadDir = path.join(UPLOADS_DIR, "designs")
     await mkdir(uploadDir, { recursive: true })
 
     const uniqueName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`
