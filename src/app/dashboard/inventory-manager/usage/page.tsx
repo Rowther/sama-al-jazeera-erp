@@ -1,19 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select } from "@/components/ui/select"
-import { formatCurrency } from "@/lib/utils"
 import { Package, BarChart3, Calendar, ArrowLeft, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
 
 export default function InventoryUsagePage() {
   const router = useRouter()
-  const [period, setPeriod] = useState("monthly")
+  const [period, setPeriod] = useState("daily")
   const [page, setPage] = useState(1)
 
   const { data, isLoading } = useQuery({
@@ -25,6 +24,53 @@ export default function InventoryUsagePage() {
   const usage = data?.usage || []
   const periods = data?.periods || []
   const pagination = data?.pagination
+
+  const exportXLSX = useCallback(async () => {
+    if (!usage.length) return
+    const ExcelJS = (await import("exceljs")).default
+    const wb = new ExcelJS.Workbook()
+    const ws = wb.addWorksheet("Inventory Usage")
+
+    ws.columns = [
+      { header: "#", key: "sn", width: 5 },
+      { header: "Material", key: "material", width: 25 },
+      { header: "Category", key: "category", width: 15 },
+      { header: "Unit", key: "unit", width: 8 },
+      { header: "Date/Period", key: "period", width: 14 },
+      { header: "Qty Used", key: "qty", width: 10 },
+      { header: "Work Order", key: "wo", width: 14 },
+      { header: "Customer Name", key: "customer", width: 20 },
+      { header: "Customer Phone", key: "phone", width: 15 },
+      { header: "Notes", key: "notes", width: 20 },
+    ]
+
+    const headerRow = ws.getRow(1)
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } }
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F8EF7" } }
+    headerRow.alignment = { vertical: "middle", horizontal: "center" }
+
+    let sn = 0
+    for (const item of usage) {
+      const sortedKeys = Object.keys(item.periods).sort()
+      for (const pk of sortedKeys) {
+        const p = item.periods[pk]
+        for (const mv of p.movements) {
+          sn++
+          const wo = mv.workOrderRef?.workOrderId || ""
+          const cust = mv.workOrderRef?.customerName || ""
+          const phone = mv.workOrderRef?.customerPhone || ""
+          ws.addRow({ sn, material: item.itemName, category: item.category, unit: item.unit, period: pk, qty: mv.quantity, wo, customer: cust, phone, notes: mv.notes || "" })
+        }
+      }
+    }
+
+    const buf = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url; a.download = `inventory-usage-${period}.xlsx`; a.click()
+    URL.revokeObjectURL(url)
+  }, [usage, period])
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -48,26 +94,8 @@ export default function InventoryUsagePage() {
             value={period}
             onChange={(e) => { setPeriod(e.target.value); setPage(1) }}
           />
-          <Button variant="outline" size="sm" onClick={() => {
-            if (!usage.length) return
-            const rows = [["Material","Category","Unit",period === "daily" ? "Date" : period === "weekly" ? "Week" : "Month","Qty Used","Transactions","Reference","Notes"]]
-            for (const item of usage) {
-              const sortedKeys = Object.keys(item.periods).sort()
-              for (const pk of sortedKeys) {
-                const p = item.periods[pk]
-                for (const mv of p.movements) {
-                  rows.push([item.itemName,item.category,item.unit,pk,String(p.total),String(p.count),mv.referenceType || "",mv.notes || ""])
-                }
-              }
-            }
-            const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n")
-            const blob = new Blob([csv],{type:"text/csv"})
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url; a.download = `inventory-usage-${period}.csv`; a.click()
-            URL.revokeObjectURL(url)
-          }} disabled={!usage.length}>
-            <Download className="h-4 w-4 mr-1" /> Export CSV
+          <Button variant="outline" size="sm" onClick={exportXLSX} disabled={!usage.length}>
+            <Download className="h-4 w-4 mr-1" /> Export XLSX
           </Button>
         </div>
       </div>
@@ -123,38 +151,36 @@ export default function InventoryUsagePage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100">
+                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">#</th>
                       <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">{period === "daily" ? "Date" : period === "weekly" ? "Week Starting" : "Month"}</th>
                       <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Qty Used</th>
-                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Transactions</th>
-                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Details</th>
+                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Work Order</th>
+                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Customer</th>
+                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Phone</th>
+                      <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Notes</th>
                     </tr>
                   </thead>
                   <tbody>
                     {sortedPeriodKeys.slice(-10).map((pk: string) => {
                       const p = item.periods[pk]
-                      return (
-                        <tr key={pk} className="border-b border-gray-50 hover:bg-gray-50">
+                      return p.movements.map((mv: any, idx: number) => (
+                        <tr key={mv.id} className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="py-2 px-2 text-gray-400 text-xs">{idx + 1}</td>
                           <td className="py-2 px-2 font-medium text-gray-900">{pk}</td>
-                          <td className="py-2 px-2">{p.total} {item.unit}</td>
-                          <td className="py-2 px-2">{p.count}</td>
+                          <td className="py-2 px-2">{mv.quantity} {item.unit}</td>
                           <td className="py-2 px-2">
-                            <div className="flex flex-wrap gap-1">
-                              {p.movements.slice(0, 3).map((mv: any) => (
-                                <span key={mv.id} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full" title={mv.notes || ""}>
-                                  {mv.quantity} {item.unit}
-                                  {mv.referenceType === "WORK_ORDER" && " (WO)"}
-                                </span>
-                              ))}
-                              {p.movements.length > 3 && (
-                                <span className="text-xs text-gray-400">+{p.movements.length - 3} more</span>
-                              )}
-                            </div>
+                            <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                              {mv.workOrderRef?.workOrderId || "N/A"}
+                            </span>
                           </td>
+                          <td className="py-2 px-2 text-gray-700">{mv.workOrderRef?.customerName || "-"}</td>
+                          <td className="py-2 px-2 text-gray-500 text-xs">{mv.workOrderRef?.customerPhone || "-"}</td>
+                          <td className="py-2 px-2 text-gray-400 text-xs max-w-[200px] truncate" title={mv.notes || ""}>{mv.notes || "-"}</td>
                         </tr>
-                      )
+                      ))
                     })}
                     {sortedPeriodKeys.length === 0 && (
-                      <tr><td colSpan={4} className="py-4 text-center text-gray-400">No usage data</td></tr>
+                      <tr><td colSpan={7} className="py-4 text-center text-gray-400">No usage data</td></tr>
                     )}
                   </tbody>
                 </table>

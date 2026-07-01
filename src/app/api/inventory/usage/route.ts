@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
   const woIds = [...new Set(movements.filter(m => m.referenceType === "WORK_ORDER" && m.referenceId).map(m => m.referenceId!))]
   const workOrders = woIds.length > 0
-    ? await prisma.workOrder.findMany({ where: { id: { in: woIds } }, select: { id: true, workOrderId: true, customer: { select: { name: true } } } })
+    ? await prisma.workOrder.findMany({ where: { id: { in: woIds } }, select: { id: true, workOrderId: true, customer: { select: { name: true, phone: true } } } })
     : []
   const woMap = new Map(workOrders.map(wo => [wo.id, wo]))
 
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       quantity: m.quantity,
       referenceId: m.referenceId,
       referenceType: m.referenceType,
-      workOrderRef: wo ? { id: wo.id, workOrderId: wo.workOrderId, customerName: wo.customer?.name } : undefined,
+      workOrderRef: wo ? { id: wo.id, workOrderId: wo.workOrderId, customerName: wo.customer?.name, customerPhone: wo.customer?.phone } : undefined,
       notes: m.notes,
       createdBy: m.createdBy.name,
       createdAt: m.createdAt,
