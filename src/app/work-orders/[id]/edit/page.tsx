@@ -17,7 +17,7 @@ export default function EditWorkOrderPage() {
   const router = useRouter()
   const params = useParams()
   const [form, setForm] = useState<any>(null)
-  const [items, setItems] = useState<{ name: string; quantity: number; dimensions: string; notes: string; description: string }[]>([])
+  const [items, setItems] = useState<{ id?: string; name: string; quantity: number; dimensions: string; notes: string; description: string }[]>([])
   const [teamMembers, setTeamMembers] = useState<{ userId: string; role: string }[]>([])
   const [error, setError] = useState("")
   const [loaded, setLoaded] = useState(false)
@@ -60,7 +60,18 @@ export default function EditWorkOrderPage() {
         status: wo.status || "DRAFT",
         assignedToId: wo.assignedTo?.id || "",
       })
-      if (wo.items) setItems(wo.items)
+      if (wo.workOrderItems && wo.workOrderItems.length > 0) {
+        setItems(wo.workOrderItems.map((i: any) => ({
+          id: i.id,
+          name: i.name,
+          quantity: i.quantity,
+          dimensions: i.dimensions || "",
+          notes: i.notes || "",
+          description: i.description || "",
+        })))
+      } else if (wo.items) {
+        setItems(wo.items)
+      }
       if (wo.teamMembers) {
         setTeamMembers(
           wo.teamMembers

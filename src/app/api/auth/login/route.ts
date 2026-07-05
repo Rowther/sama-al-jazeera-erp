@@ -53,14 +53,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const sessionId = crypto.randomUUID()
     await prisma.user.update({
       where: { id: user.id },
-      data: { loginAttempts: 0, lockoutUntil: null, refreshToken: crypto.randomUUID(), lastLogin: new Date() },
+      data: { loginAttempts: 0, lockoutUntil: null, refreshToken: sessionId, lastLogin: new Date() },
     })
 
     const tokenPayload = { userId: user.id, email: user.email, role: user.role }
     const token = generateToken(tokenPayload)
-    const sessionId = crypto.randomUUID()
 
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, role: user.role, avatar: user.avatar, phone: user.phone },

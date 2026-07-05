@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       prisma.payment.groupBy({
         by: ["date"],
-        where: { date: { gte: startDate } },
+        where: { date: { gte: startDate }, type: "INCOME" },
         _sum: { amount: true },
       }),
       prisma.expense.groupBy({
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
         totalPendingExpenses,
         totalExpectedRevenue,
         currentCashBalance: monthlyCashFlow.length > 0
-          ? monthlyCashFlow.slice(-1)[0].net
+          ? monthlyCashFlow.reduce((s, m) => s + m.net, 0)
           : 0,
         averageMonthlyIncome: monthlyCashFlow.length > 0
           ? monthlyCashFlow.reduce((s, m) => s + m.income, 0) / monthlyCashFlow.length

@@ -96,12 +96,12 @@ export default function AccountantDashboard() {
     return result
   }, [payments, paymentFilter, dateRange])
 
-  const totalInflow = payments.reduce((s: number, p: any) => s + (p.status === "PAID" ? p.amount : 0), 0)
-  const totalOutflow = filteredExpenses.reduce((s: number, e: any) => s + e.amount, 0)
+  const totalInflow = payments.reduce((s: number, p: any) => s + (p.type === "INCOME" && p.status === "PAID" ? p.amount : 0), 0)
+  const totalOutflow = expenses.reduce((s: number, e: any) => s + e.amount, 0)
   const pendingPayments = payments.filter((p: any) => p.status === "PENDING")
   const pendingAmount = pendingPayments.reduce((s: number, p: any) => s + p.amount, 0)
-  const receivables = workOrders.filter((w: any) => w.advanceReceived > 0 && w.status !== "CLOSED" && w.status !== "DELIVERED")
-  const receivablesTotal = receivables.reduce((s: number, w: any) => s + (w.estimatedBudget || 0) - w.advanceReceived, 0)
+  const receivables = workOrders.filter((w: any) => w.status !== "CLOSED" && w.status !== "DELIVERED")
+  const receivablesTotal = receivables.reduce((s: number, w: any) => s + (w.remainingAmount ?? ((w.finalPrice || w.estimatedBudget || 0) - w.advanceReceived)), 0)
   const totalInstallments = installments.reduce((s: number, i: any) => s + i.amount, 0)
 
   const pendingMaterialReview = workOrders.filter((w: any) => w.status === "MATERIAL_REVIEW")

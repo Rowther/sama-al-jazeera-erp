@@ -159,6 +159,54 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
       }
 
+      // Sync WorkOrderItem records when items are provided
+      if (data.items && Array.isArray(data.items)) {
+        const submittedIds = data.items.filter((i: any) => i.id).map((i: any) => i.id)
+
+        const orphanedItems = await tx.workOrderItem.findMany({
+          where: { workOrderId: params.id, id: { notIn: submittedIds } },
+          select: { id: true },
+        })
+
+        if (orphanedItems.length > 0) {
+          const orphanedIds = orphanedItems.map((i) => i.id)
+          await tx.workerAssignment.updateMany({ where: { workOrderItemId: { in: orphanedIds } }, data: { workOrderItemId: null } })
+          await tx.workOrderMaterial.updateMany({ where: { workOrderItemId: { in: orphanedIds } }, data: { workOrderItemId: null } })
+          await tx.laborEntry.updateMany({ where: { workOrderItemId: { in: orphanedIds } }, data: { workOrderItemId: null } })
+          await tx.expense.updateMany({ where: { workOrderItemId: { in: orphanedIds } }, data: { workOrderItemId: null } })
+          await tx.productionStage.updateMany({ where: { workOrderItemId: { in: orphanedIds } }, data: { workOrderItemId: null } })
+          await tx.workOrderInventory.updateMany({ where: { workOrderItemId: { in: orphanedIds } }, data: { workOrderItemId: null } })
+          await tx.workOrderItem.deleteMany({ where: { id: { in: orphanedIds } } })
+        }
+
+        for (const item of data.items.filter((i: any) => i.id)) {
+          await tx.workOrderItem.update({
+            where: { id: item.id },
+            data: {
+              name: item.name,
+              quantity: item.quantity || 1,
+              description: item.description || null,
+              dimensions: item.dimensions || null,
+              notes: item.notes || null,
+            },
+          })
+        }
+
+        const newItems = data.items.filter((i: any) => !i.id)
+        if (newItems.length > 0) {
+          await tx.workOrderItem.createMany({
+            data: newItems.map((item: any) => ({
+              workOrderId: params.id,
+              name: item.name,
+              quantity: item.quantity || 1,
+              description: item.description || null,
+              dimensions: item.dimensions || null,
+              notes: item.notes || null,
+            })),
+          })
+        }
+      }
+
       const order = await tx.workOrder.update({
         where: { id: params.id },
         data: updateData,

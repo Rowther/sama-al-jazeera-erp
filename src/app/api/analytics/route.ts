@@ -80,9 +80,9 @@ export async function GET(request: NextRequest) {
         workOrderId: wo.workOrderId,
         budget: wo.estimatedBudget || 0,
         actual: wo.totalCost,
-        revenue: incomeByWO.get(wo.id) || wo.advanceReceived || 0,
+        revenue: incomeByWO.get(wo.id) || 0,
         cost: wo.totalCost,
-        profit: (incomeByWO.get(wo.id) || wo.advanceReceived || 0) - wo.totalCost,
+        profit: (incomeByWO.get(wo.id) || 0) - wo.totalCost,
         margin: wo.profitMargin || 0,
         status: wo.status,
       }))
