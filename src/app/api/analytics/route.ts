@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function GET(request: NextRequest) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "ACCOUNTANT"])
+    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "ACCOUNTANT", "PRODUCTION_MANAGER"])
     if (error) return error
 
     const [

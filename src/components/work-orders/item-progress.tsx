@@ -44,6 +44,8 @@ export function ItemProgress({ items, workOrderId, labourUsers, currentStatus }:
   const [editLabourer, setEditLabourer] = useState("")
   const [editCompletionDate, setEditCompletionDate] = useState("")
   const [editDelayReason, setEditDelayReason] = useState("")
+  const [progressStep, setProgressStep] = useState<number | null>(null)
+  const [progressComment, setProgressComment] = useState("")
 
   const overallProgress = useMemo(() => {
     if (items.length === 0) return 0
@@ -79,11 +81,19 @@ export function ItemProgress({ items, workOrderId, labourUsers, currentStatus }:
     setEditLabourer(item.assignedLabourerId || "")
     setEditCompletionDate(item.expectedCompletionDate ? item.expectedCompletionDate.split("T")[0] : "")
     setEditDelayReason(item.delayReason || "")
+    setProgressStep(null)
+    setProgressComment("")
   }
 
   const handleSaveItem = () => {
     if (!selectedItem) return
     const data: any = { itemId: selectedItem.id }
+    if (progressStep !== null) {
+      data.progress = progressStep
+      if (progressComment.trim()) {
+        data.notes = `[${progressStep}%] ${progressComment.trim()}${selectedItem.notes ? `\n${selectedItem.notes}` : ""}`
+      }
+    }
     if (editLabourer !== (selectedItem.assignedLabourerId || "")) data.assignedLabourerId = editLabourer || null
     if (editCompletionDate !== (selectedItem.expectedCompletionDate?.split("T")[0] || "")) {
       data.expectedCompletionDate = editCompletionDate || null
@@ -245,7 +255,41 @@ export function ItemProgress({ items, workOrderId, labourUsers, currentStatus }:
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
+              {/* Progress Update */}
+              <div>
+                <label className="text-xs text-gray-500 flex items-center gap-1 mb-2"><Play className="h-3 w-3" /> Update Progress</label>
+                <div className="flex gap-2">
+                  {[25, 50, 75, 100].map((step) => (
+                    <Button
+                      key={step}
+                      type="button"
+                      size="sm"
+                      variant={progressStep === step ? "default" : "outline"}
+                      onClick={() => setProgressStep(progressStep === step ? null : step)}
+                      className="flex-1"
+                    >
+                      {step}%
+                    </Button>
+                  ))}
+                </div>
+                {progressStep !== null && (
+                  <div className="mt-2 space-y-1">
+                    <label className="text-xs text-gray-500 flex items-center gap-1">
+                      <MessageSquare className="h-3 w-3" /> Progress Comment <span className="text-[#F45D5D]">*</span>
+                    </label>
+                    <textarea
+                      className="flex w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 min-h-[60px]"
+                      value={progressComment}
+                      onChange={(e) => setProgressComment(e.target.value)}
+                      placeholder="Describe the current completion status..."
+                    />
+                  </div>
+                )}
+              </div>
+
+              <hr className="border-gray-100" />
+
               <div className="space-y-1">
                 <label className="text-xs text-gray-500 flex items-center gap-1"><User className="h-3 w-3" /> Assigned Labourer</label>
                 <Select
@@ -270,7 +314,7 @@ export function ItemProgress({ items, workOrderId, labourUsers, currentStatus }:
                   <MessageSquare className="h-3 w-3" /> Delay Reason / Comments
                 </label>
                 <textarea
-                  className="flex w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 min-h-[80px]"
+                  className="flex w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F8EF7] focus-visible:ring-offset-2 min-h-[60px]"
                   value={editDelayReason}
                   onChange={(e) => setEditDelayReason(e.target.value)}
                   placeholder="Why is this item delayed? Add any notes..."
@@ -280,7 +324,10 @@ export function ItemProgress({ items, workOrderId, labourUsers, currentStatus }:
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
               <Button variant="outline" onClick={() => setSelectedItem(null)}>Cancel</Button>
-              <Button onClick={handleSaveItem} disabled={updateItemMutation.isPending}>
+              <Button
+                onClick={handleSaveItem}
+                disabled={updateItemMutation.isPending || (progressStep !== null && !progressComment.trim())}
+              >
                 Save Changes
               </Button>
             </div>

@@ -26,7 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER"])
+    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "PRODUCTION_MANAGER"])
     if (error) return error
 
     const order = await prisma.workOrder.findUnique({
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER"])
+    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "PRODUCTION_MANAGER"])
     if (error) return error
 
     const data = await request.json()

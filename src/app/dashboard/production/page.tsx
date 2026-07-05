@@ -33,11 +33,24 @@ export default function ProductionDashboard() {
     refetchInterval: 30000,
   })
 
+  const { data: analytics } = useQuery({
+    queryKey: ["analytics"],
+    queryFn: () => api.get<any>("/analytics"),
+  })
+
+  const { data: cashFlowData } = useQuery({
+    queryKey: ["cash-flow"],
+    queryFn: () => api.get<any>("/cash-flow?months=12"),
+  })
+
   const { data: usersData } = useQuery({
     queryKey: ["users", "labour"],
     queryFn: () => api.get<any>("/users"),
   })
   const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR")
+  const kpis = analytics?.kpis || {}
+  const cashFlow = cashFlowData || { summary: {} }
+  const cashBurnRate = cashFlow.summary?.burnRate || 0
 
   const productionAction = useMutation({
     mutationFn: ({ id, action }: { id: string; action: string }) =>
@@ -113,6 +126,47 @@ export default function ProductionDashboard() {
         </CardContent></Card>
       </div>
 
+      {/* Financial Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card><CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Revenue</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.totalRevenue || 0)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-green-50 text-[#36B37E]"><BarChart3 className="h-5 w-5" /></div>
+          </div>
+        </CardContent></Card>
+        <Card><CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Total Costs</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.totalCosts || 0)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-red-50 text-[#F45D5D]"><Clock className="h-5 w-5" /></div>
+          </div>
+        </CardContent></Card>
+        <Card><CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Net Profit</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.netProfit || 0)}</p>
+            </div>
+            <div className="p-3 rounded-xl bg-[#EEF4FF] text-[#4F8EF7]"><BarChart3 className="h-5 w-5" /></div>
+          </div>
+        </CardContent></Card>
+        <Card><CardContent className="p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-gray-500">Cash Burn Rate</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(cashBurnRate)}</p>
+              <span className="inline-flex items-center gap-1 text-xs text-gray-400 mt-1">Monthly</span>
+            </div>
+            <div className="p-3 rounded-xl bg-purple-50 text-purple-600"><BarChart3 className="h-5 w-5" /></div>
+          </div>
+        </CardContent></Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Production */}
         <Card data-tour="production-active">
@@ -127,7 +181,9 @@ export default function ProductionDashboard() {
                 <p className="text-sm text-gray-400 text-center py-8">No active production</p>
               )}
               {activeOrders.map((wo: any) => (
-                <div key={wo.id} className="rounded-xl border border-gray-100 p-4 hover:shadow-sm transition-all">
+                <div key={wo.id} className={`rounded-xl border p-4 hover:shadow-sm transition-all ${
+                  wo.costOverrun > 0 ? "border-red-200 bg-red-50/30" : "border-gray-100"
+                }`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-gray-900">{wo.workOrderId}</span>
@@ -150,6 +206,15 @@ export default function ProductionDashboard() {
                     <span>{wo.customer?.name}</span>
                     <span>Due: {wo.dueDate ? formatDate(wo.dueDate) : "-"}</span>
                   </div>
+                  {(wo.estimatedBudget || wo.totalCost > 0) && (
+                    <div className="flex items-center justify-between text-xs mt-1.5 pt-1.5 border-t border-gray-100">
+                      <span className="text-gray-500">Budget: {formatCurrency(wo.estimatedBudget || 0)}</span>
+                      <span className={wo.costOverrun > 0 ? "text-[#F45D5D] font-semibold" : "text-[#36B37E]"}>
+                        Cost: {formatCurrency(wo.totalCost || 0)}
+                        {wo.costOverrun > 0 && <span className="ml-1">(Over by {formatCurrency(wo.costOverrun)})</span>}
+                      </span>
+                    </div>
+                  )}
                   {/* Active Stages */}
                   {(wo.productionStages || []).length > 0 && (
                     <div className="flex items-center gap-1 mt-2">
@@ -205,22 +270,34 @@ export default function ProductionDashboard() {
                 <p className="text-sm text-gray-400 text-center py-8">Queue is empty</p>
               )}
               {productionQueue.map((wo: any) => (
-                <div key={wo.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.id}`)}>
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-50 text-[#FFB648]">
-                      <Clock className="h-4 w-4" />
+                <div key={wo.id} className={`p-3 rounded-xl hover:bg-gray-50 cursor-pointer ${
+                  wo.costOverrun > 0 ? "bg-red-50/30 border border-red-200" : ""
+                }`} onClick={() => router.push(`/work-orders/${wo.id}`)}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-amber-50 text-[#FFB648]">
+                        <Clock className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
+                        <p className="text-xs text-gray-400">{wo.customer?.name}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
-                      <p className="text-xs text-gray-400">{wo.customer?.name}</p>
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={wo.status} />
+                      <Button size="sm" variant="default" onClick={(e) => { e.stopPropagation(); productionAction.mutate({ id: wo.id, action: "START" }) }} disabled={productionAction.isPending}>
+                        <Play className="h-3 w-3 mr-1" /> Start
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <StatusBadge status={wo.status} />
-                    <Button size="sm" variant="default" onClick={(e) => { e.stopPropagation(); productionAction.mutate({ id: wo.id, action: "START" }) }} disabled={productionAction.isPending}>
-                      <Play className="h-3 w-3 mr-1" /> Start
-                    </Button>
-                  </div>
+                  {(wo.estimatedBudget || wo.totalCost > 0) && (
+                    <div className="flex items-center gap-2 text-xs mt-1 ml-10">
+                      <span className="text-gray-400">Budget: {formatCurrency(wo.estimatedBudget || 0)}</span>
+                      <span className={wo.costOverrun > 0 ? "text-[#F45D5D]" : "text-[#36B37E]"}>
+                        | Cost: {formatCurrency(wo.totalCost || 0)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

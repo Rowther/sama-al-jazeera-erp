@@ -77,7 +77,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER"])
+    const { payload: user, error } = requireAuth(request, ["OWNER", "MANAGER", "PRODUCTION_MANAGER"])
     if (error) return error
 
     const data = await request.json()
@@ -103,6 +103,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
     if (cleanData.delayReason !== undefined) {
       cleanData.delayReason = (cleanData.delayReason as string) || null
+    }
+
+    if (cleanData.progress !== undefined) {
+      const progress = Math.min(100, Math.max(0, cleanData.progress as number))
+      cleanData.progress = progress
+      if (progress === 100) {
+        cleanData.status = "COMPLETED"
+      } else if (progress > 0 && progress < 100) {
+        cleanData.status = "IN_PROGRESS"
+      }
     }
 
     const item = await prisma.workOrderItem.update({

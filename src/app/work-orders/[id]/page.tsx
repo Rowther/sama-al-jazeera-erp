@@ -382,7 +382,7 @@ export default function WorkOrderDetailPage() {
       )}
 
       {/* Financial Overview */}
-      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
+      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT" || user?.role === "PRODUCTION_MANAGER") && (
         <Card className="border-t-4 border-t-[#4F8EF7]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -490,7 +490,7 @@ export default function WorkOrderDetailPage() {
         workOrderItems={workOrderItems}
       />
 
-      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
+      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT" || user?.role === "PRODUCTION_MANAGER") && (
         <LaborCostTracking
           workOrderId={wo.id}
           workers={wo.workerAssignments || []}
@@ -1048,7 +1048,7 @@ export default function WorkOrderDetailPage() {
         </Card>
         )}
 
-        {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
+        {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT" || user?.role === "PRODUCTION_MANAGER") && (
           <InstallmentPayments
             workOrderId={wo.id}
             installments={wo.installments || []}
