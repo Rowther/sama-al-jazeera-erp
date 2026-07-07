@@ -57,9 +57,12 @@ export default function InventoryPage() {
 
   const editMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => api.patch(`/inventory/${id}`, data),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       toast.success("Inventory item updated")
-      queryClient.invalidateQueries({ queryKey: ["inventory"] })
+      queryClient.setQueryData(["inventory", trimmedSearch, category, lowStockOnly, page], (old: any) => {
+        if (!old?.inventory) return old
+        return { ...old, inventory: old.inventory.map((i: any) => i.id === response.inventory.id ? response.inventory : i) }
+      })
       queryClient.invalidateQueries({ queryKey: ["inventory-all"] })
       setEditingItem(null)
       setEditForm({})
