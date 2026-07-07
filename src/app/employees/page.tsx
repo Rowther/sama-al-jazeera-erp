@@ -10,10 +10,11 @@ import { Select } from "@/components/ui/select"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { Modal } from "@/components/ui/modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { Users, Plus, Search, Wallet, Calendar, FileText, Download } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { Users, Plus, Edit, Trash2, Calendar, FileText, Download } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
+import { toast } from "sonner"
 
 const ROLES_LIST = [
   { value: "OWNER", label: "Owner" }, { value: "MANAGER", label: "Manager" },
@@ -24,10 +25,11 @@ const ROLES_LIST = [
 ]
 
 export default function EmployeesPage() {
-  const router = useRouter()
   const { user } = useAuthStore()
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState<any>({})
+  const [editEmployee, setEditEmployee] = useState<any>(null)
+  const [editForm, setEditForm] = useState<any>({})
   const queryClient = useQueryClient()
 
   const { data, isLoading } = useQuery({
@@ -40,7 +42,43 @@ export default function EmployeesPage() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["employees"] }); setShowAddForm(false) },
   })
 
+  const updateMutation = useMutation({
+    mutationFn: (data: any) => api.patch(`/employees/${editEmployee.id}`, data),
+    onSuccess: () => {
+      toast.success("Employee updated")
+      setEditEmployee(null)
+      setEditForm({})
+      queryClient.invalidateQueries({ queryKey: ["employees"] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/employees/${id}`),
+    onSuccess: () => {
+      toast.success("Employee deleted")
+      queryClient.invalidateQueries({ queryKey: ["employees"] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
   const employees = data?.employees || []
+  const usersWithoutEmployee = data?.usersWithoutEmployee || []
+
+  const allPeople = [
+    ...employees.map((e: any) => ({ ...e, isEmployee: true })),
+    ...usersWithoutEmployee.map((u: any) => ({
+      id: u.id,
+      isEmployee: false,
+      user: u,
+      employeeId: "-",
+      department: "",
+      salary: null,
+      visaExpiry: null,
+      passportExpiry: null,
+      attendance: [],
+    })),
+  ]
 
   const onLeave = employees.filter((e: any) => e.attendance?.some((a: any) => a.status === "LEAVE"))
   const upcomingVisa = employees.filter((e: any) => e.visaExpiry && new Date(e.visaExpiry) < new Date(Date.now() + 90 * 86400000))
@@ -55,7 +93,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Employees</h1>
-          <p className="text-sm text-gray-500 mt-1">{employees.length} total employees</p>
+          <p className="text-sm text-gray-500 mt-1">{allPeople.length} total employees</p>
         </div>
         {user?.role === "OWNER" && (
           <Button onClick={() => setShowAddForm(!showAddForm)}>
@@ -68,7 +106,7 @@ export default function EmployeesPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card><CardContent className="p-4 text-center">
           <Users className="h-5 w-5 text-[#4F8EF7] mx-auto mb-1" />
-          <p className="text-2xl font-bold text-gray-900">{employees.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{allPeople.length}</p>
           <p className="text-xs text-gray-500">Total Employees</p>
         </CardContent></Card>
         <Card><CardContent className="p-4 text-center">
@@ -104,7 +142,7 @@ export default function EmployeesPage() {
                     <Input type="email" required={form.role !== "LABOUR" && form.role !== "DRIVER"} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={form.role === "LABOUR" || form.role === "DRIVER" ? "Auto-generated" : "Enter email"} />
                   </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Role</label>
+                  <label className="text-sm font-medium text-gray-700">Role *</label>
                   <Select options={ROLES_LIST} onChange={(e) => setForm({ ...form, role: e.target.value })} placeholder="Select role" />
                 </div>
               </div>
@@ -169,29 +207,30 @@ export default function EmployeesPage() {
               <thead>
                 <tr className="border-b border-gray-100">
                   <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Employee</th>
-                  <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Department</th>
+                  <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Trade / Dept</th>
                   <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Role</th>
                   <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Salary</th>
                   <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Visa Expiry</th>
                   <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Passport Expiry</th>
                   <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Status</th>
+                  <th className="text-left py-4 px-4 text-gray-500 font-medium text-xs uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {employees.map((emp: any) => {
+                {allPeople.map((emp: any) => {
                   const onLeaveNow = emp.attendance?.some((a: any) => a.status === "LEAVE")
                   return (
-                    <tr key={emp.id} className="border-b border-gray-50 hover:bg-gray-50">
+                    <tr key={emp.isEmployee ? emp.id : `user-${emp.user?.id}`} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
                           <Avatar name={emp.user?.name} size="sm" />
                           <div>
                             <p className="font-medium text-gray-900">{emp.user?.name}</p>
-                            <p className="text-xs text-gray-400">{emp.employeeId}</p>
+                            <p className="text-xs text-gray-400">{emp.employeeId || "No employee record"}</p>
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-700">{emp.department || "-"}</td>
+                      <td className="py-3 px-4 text-gray-700">{emp.designation || emp.department || "-"}</td>
                       <td className="py-3 px-4"><StatusBadge status={emp.user?.role} /></td>
                       <td className="py-3 px-4 text-gray-700">{emp.salary ? formatCurrency(emp.salary) : "-"}</td>
                       <td className="py-3 px-4">
@@ -211,14 +250,93 @@ export default function EmployeesPage() {
                       <td className="py-3 px-4">
                         {onLeaveNow ? <Badge variant="warning">On Leave</Badge> : <Badge variant="success">Active</Badge>}
                       </td>
+                      <td className="py-3 px-4">
+                        <div className="flex gap-1">
+                          {(user?.role === "OWNER" || user?.role === "MANAGER") && emp.isEmployee && (
+                            <Button size="sm" variant="ghost" onClick={() => { setEditEmployee(emp); setEditForm({ name: emp.user?.name, role: emp.user?.role, ...emp }) }}>
+                              <Edit className="h-3.5 w-3.5 text-[#4F8EF7]" />
+                            </Button>
+                          )}
+                          {user?.role === "OWNER" && emp.isEmployee && (
+                            <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this employee? This will also delete their user account.")) deleteMutation.mutate(emp.id) }}>
+                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                            </Button>
+                          )}
+                        </div>
+                      </td>
                     </tr>
                   )
                 })}
+                {allPeople.length === 0 && (
+                  <tr><td colSpan={8} className="text-center py-8 text-sm text-gray-400">No employees found</td></tr>
+                )}
               </tbody>
             </table>
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit Employee Modal */}
+      <Modal open={!!editEmployee} onClose={() => { setEditEmployee(null); setEditForm({}) }} title="Edit Employee" size="md">
+        <form onSubmit={(e) => { e.preventDefault(); updateMutation.mutate(editForm) }} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Full Name</label>
+              <Input value={editForm.name || ""} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Role</label>
+              <Select options={ROLES_LIST} value={editForm.role || ""} onChange={(e) => setEditForm({ ...editForm, role: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Trade / Job Role</label>
+              <Input value={editForm.designation || ""} onChange={(e) => setEditForm({ ...editForm, designation: e.target.value })} placeholder="e.g., Carpenter, Electrician" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Department</label>
+              <Input value={editForm.department || ""} onChange={(e) => setEditForm({ ...editForm, department: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Phone</label>
+              <Input value={editForm.phone || ""} onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Salary</label>
+              <Input type="number" value={editForm.salary || ""} onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Joining Date</label>
+              <Input type="date" value={editForm.joiningDate ? editForm.joiningDate.split("T")[0] : ""} onChange={(e) => setEditForm({ ...editForm, joiningDate: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Passport Expiry</label>
+              <Input type="date" value={editForm.passportExpiry ? editForm.passportExpiry.split("T")[0] : ""} onChange={(e) => setEditForm({ ...editForm, passportExpiry: e.target.value })} />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Visa Number</label>
+              <Input value={editForm.visaNumber || ""} onChange={(e) => setEditForm({ ...editForm, visaNumber: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Visa Expiry</label>
+              <Input type="date" value={editForm.visaExpiry ? editForm.visaExpiry.split("T")[0] : ""} onChange={(e) => setEditForm({ ...editForm, visaExpiry: e.target.value })} />
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button variant="outline" type="button" onClick={() => { setEditEmployee(null); setEditForm({}) }}>Cancel</Button>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

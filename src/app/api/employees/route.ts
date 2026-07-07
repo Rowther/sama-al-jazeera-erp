@@ -12,17 +12,22 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200)
   const skip = (page - 1) * limit
 
-  const [employees, total] = await Promise.all([
+  const [employees, usersWithoutEmployee, total] = await Promise.all([
     prisma.employee.findMany({
       include: { user: { select: { id: true, email: true, name: true, role: true } }, attendance: true, payroll: true },
       orderBy: { createdAt: "desc" },
       skip,
       take: limit,
     }),
+    prisma.user.findMany({
+      where: { employee: null },
+      select: { id: true, email: true, name: true, role: true },
+      orderBy: { name: "asc" },
+    }),
     prisma.employee.count(),
   ])
 
-  return NextResponse.json({ employees, total, page, totalPages: Math.ceil(total / limit) }, {
+  return NextResponse.json({ employees, usersWithoutEmployee, total, page, totalPages: Math.ceil(total / limit) }, {
     headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
   })
 }
