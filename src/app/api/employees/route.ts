@@ -32,11 +32,12 @@ export async function POST(request: NextRequest) {
   if (!user) return NextResponse.json({ message: "Unauthorized" }, { status: 401 })
 
   const data = await request.json()
-  const isLabour = data.role === "LABOUR"
+  const noLoginRoles = ["LABOUR", "DRIVER"]
+  const isNoLogin = noLoginRoles.includes(data.role)
 
-  // For labour, auto-generate credentials since they don't need login
-  const email = data.email || (isLabour ? `labour-${Date.now()}@internal.samaaljazeera.com` : undefined)
-  const password = data.password || (isLabour ? await bcrypt.hash(Math.random().toString(36), 12) : "$2a$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5Gz0nZ0yh0m0yf0z0x0y0z0W")
+  // For labour/driver, auto-generate credentials since they don't need login
+  const email = data.email || (isNoLogin ? `${data.role.toLowerCase()}-${Date.now()}@internal.samaaljazeera.com` : undefined)
+  const password = data.password || (isNoLogin ? await bcrypt.hash(Math.random().toString(36), 12) : "$2a$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5Gz0nZ0yh0m0yf0z0x0y0z0W")
 
   const appUser = await prisma.user.create({
     data: {
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
       password,
       name: data.name,
       role: data.role || "DESIGNER",
-      isActive: !isLabour,
+      isActive: !isNoLogin,
     },
   })
 

@@ -26,7 +26,8 @@ export const ROLES = {
   INVENTORY_MANAGER: 'Inventory Manager',
   ACCOUNTANT: 'Accountant',
   HR: 'HR Manager',
-  LABOUR: 'Labour',
+  LABOUR: 'Worker',
+  DRIVER: 'Driver',
   PRODUCTION_MANAGER: 'Production Manager',
 } as const
 
@@ -118,6 +119,12 @@ export const NAV_ITEMS = {
     { label: 'Settings', href: '/settings', icon: 'Settings' },
   ],
   LABOUR: [
+    { label: 'Dashboard', href: '/dashboard/labour', icon: 'LayoutDashboard' },
+    { label: 'Work Orders', href: '/work-orders', icon: 'ClipboardList' },
+    { label: 'Notifications', href: '/notifications', icon: 'Bell' },
+    { label: 'Settings', href: '/settings', icon: 'Settings' },
+  ],
+  DRIVER: [
     { label: 'Dashboard', href: '/dashboard/labour', icon: 'LayoutDashboard' },
     { label: 'Work Orders', href: '/work-orders', icon: 'ClipboardList' },
     { label: 'Notifications', href: '/notifications', icon: 'Bell' },

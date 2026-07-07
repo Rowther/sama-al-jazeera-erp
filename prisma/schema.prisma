@@ -15,6 +15,7 @@ enum Role {
   ACCOUNTANT
   HR
   LABOUR
+  DRIVER
   PRODUCTION_MANAGER
 }
 

@@ -19,7 +19,7 @@ const ROLES_LIST = [
   { value: "OWNER", label: "Owner" }, { value: "MANAGER", label: "Manager" },
   { value: "DESIGNER", label: "Designer" }, { value: "INVENTORY_MANAGER", label: "Inventory Manager" },
   { value: "ACCOUNTANT", label: "Accountant" }, { value: "HR", label: "HR" },
-  { value: "LABOUR", label: "Labour" },
+  { value: "LABOUR", label: "Worker" }, { value: "DRIVER", label: "Driver" },
 ]
 
 export default function EmployeesPage() {
@@ -99,8 +99,8 @@ export default function EmployeesPage() {
                   <Input required onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter name" />
                 </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Email {form.role !== "LABOUR" ? "*" : ""}</label>
-                    <Input type="email" required={form.role !== "LABOUR"} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={form.role === "LABOUR" ? "Auto-generated for labour" : "Enter email"} />
+                    <label className="text-sm font-medium text-gray-700">Email {form.role !== "LABOUR" && form.role !== "DRIVER" ? "*" : ""}</label>
+                    <Input type="email" required={form.role !== "LABOUR" && form.role !== "DRIVER"} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={form.role === "LABOUR" || form.role === "DRIVER" ? "Auto-generated" : "Enter email"} />
                   </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Role</label>
