@@ -146,11 +146,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
                 },
               })
               if (orderData) {
-                await tx.jobCard.create({
-                  data: {
-                    workOrderId: params.id,
-                    generatedById: user.userId,
-                  },
+                await tx.jobCard.upsert({
+                  where: { workOrderId: params.id },
+                  update: { generatedById: user.userId, generatedAt: new Date() },
+                  create: { workOrderId: params.id, generatedById: user.userId },
                 })
               }
 
