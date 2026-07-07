@@ -56,12 +56,15 @@ export default function InventoryPage() {
   })
 
   const editMutation = useMutation({
-    mutationFn: (data: any) => api.patch(`/inventory/${editingItem.id}`, data),
+    mutationFn: ({ id, ...data }: any) => api.patch(`/inventory/${id}`, data),
     onSuccess: () => {
+      toast.success("Inventory item updated")
       queryClient.invalidateQueries({ queryKey: ["inventory"] })
+      queryClient.invalidateQueries({ queryKey: ["inventory-all"] })
       setEditingItem(null)
       setEditForm({})
     },
+    onError: (err: any) => toast.error(err?.message || "Failed to update inventory item"),
   })
 
   const deleteMutation = useMutation({
@@ -272,7 +275,7 @@ export default function InventoryPage() {
       {/* Edit Modal */}
       <Modal open={!!editingItem} onClose={() => { setEditingItem(null); setEditForm({}) }} title="Edit Inventory Item" size="lg">
         {editingItem && (
-          <form onSubmit={(e) => { e.preventDefault(); editMutation.mutate(editForm) }} className="space-y-4">
+          <form onSubmit={(e) => { e.preventDefault(); editMutation.mutate({ id: editingItem.id, ...editForm }) }} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Name *</label>
