@@ -10,7 +10,7 @@ import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Modal } from "@/components/ui/modal"
 import { Input } from "@/components/ui/input"
-import { Select } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Package, AlertTriangle, CheckCircle2, Play, User, Calendar, MessageSquare } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import type { WorkOrderItem, WorkOrderItemStatus } from "@/types"
@@ -292,7 +292,7 @@ export function ItemProgress({ items, workOrderId, labourUsers, currentStatus }:
 
               <div className="space-y-1">
                 <label className="text-xs text-gray-500 flex items-center gap-1"><User className="h-3 w-3" /> Assigned Labourer</label>
-                <Select
+                <SearchableSelect
                   options={[
                     { value: "", label: "Not assigned" },
                     ...(labourUsers || []).map((u: any) => ({ value: u.id, label: u.name })),

@@ -20,6 +20,7 @@ const ROLES_LIST = [
   { value: "DESIGNER", label: "Designer" }, { value: "INVENTORY_MANAGER", label: "Inventory Manager" },
   { value: "ACCOUNTANT", label: "Accountant" }, { value: "HR", label: "HR" },
   { value: "LABOUR", label: "Worker" }, { value: "DRIVER", label: "Driver" },
+  { value: "PRODUCTION_MANAGER", label: "Production Manager" },
 ]
 
 export default function EmployeesPage() {

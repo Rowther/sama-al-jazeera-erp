@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Modal } from "@/components/ui/modal"
 import { Select } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { useAuthStore } from "@/stores/authStore"
 import { formatDateTime } from "@/lib/utils"
 import {
@@ -372,7 +373,7 @@ export function ProductionStages({ workOrderId, stages: initialStages, currentSt
           <div className="space-y-4">
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Worker</label>
-              <Select
+              <SearchableSelect
                 options={labourUsers.map((u: any) => ({ value: u.id, label: u.name }))}
                 value={assignUserId}
                 onChange={(e) => setAssignUserId(e.target.value)}

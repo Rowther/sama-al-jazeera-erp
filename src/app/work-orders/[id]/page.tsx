@@ -306,7 +306,7 @@ export default function WorkOrderDetailPage() {
     }, []),
   ]
 
-  const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR")
+  const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR" || u.role === "DRIVER")
   const workOrderItems = (wo?.workOrderItems || []).map((i: any) => ({ id: i.id, name: i.name, quantity: i.quantity }))
   const canManage = user?.role === "OWNER" || user?.role === "MANAGER"
   const isDesigner = user?.role === "DESIGNER"
@@ -455,12 +455,12 @@ export default function WorkOrderDetailPage() {
 
             {/* Budget Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {wo.estimatedBudget && user?.role !== "PRODUCTION_MANAGER" && (
+              {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && wo.estimatedBudget && (
                 <div className="p-4 rounded-xl border border-gray-200 bg-white">
-                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Estimated Budget</p>
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Total Job Value</p>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">Total Budget</span>
+                      <span className="text-sm text-gray-600">Total Job Value</span>
                       <span className="text-sm font-bold text-gray-900">{formatCurrency(wo.estimatedBudget)}</span>
                     </div>
                     <div className="flex justify-between items-center">

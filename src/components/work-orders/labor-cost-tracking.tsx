@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Modal } from "@/components/ui/modal"
 import { Select } from "@/components/ui/select"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { useAuthStore } from "@/stores/authStore"
 import { DollarSign, Users, Clock, TrendingUp, TrendingDown, Plus } from "lucide-react"
@@ -191,7 +192,7 @@ export function LaborCostTracking({ workOrderId, workers, labourUsers, stages, c
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Worker *</label>
-              <Select
+              <SearchableSelect
                 options={labourUsers.map((u: any) => ({ value: u.id, label: u.name }))}
                 value={workerId}
                 onChange={(e) => {

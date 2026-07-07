@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       password,
       name: data.name,
       role: data.role || "DESIGNER",
-      isActive: !isNoLogin,
+      isActive: true,
     },
   })
 
