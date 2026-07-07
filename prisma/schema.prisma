@@ -183,6 +183,7 @@ model User {
 
   qualityApprovals          JobCard[]         @relation("QualityApprovedBy")
   productionApprovals       JobCard[]         @relation("ProductionApprovedBy")
+  productionBudgetApprovals WorkOrder[]       @relation("ProductionBudgetApprovedBy")
   inventoryApprovals        JobCard[]         @relation("InventoryApprovedBy")
   accountsApprovals         JobCard[]         @relation("AccountsApprovedBy")
   coordinatorApprovals      JobCard[]         @relation("CoordinatorApprovedBy")
@@ -403,6 +404,11 @@ model WorkOrder {
   items           Json         @default("[]")
   notes           String?
   estimatedBudget Float?
+  productionManagerBudget Float?
+  productionManagerBudgetApproved Boolean @default(false)
+  productionManagerBudgetApprovedById String?
+  productionManagerBudgetApprovedBy User? @relation("ProductionBudgetApprovedBy", fields: [productionManagerBudgetApprovedById], references: [id])
+  productionManagerBudgetApprovedAt DateTime?
   estimatedMaterialCost Float?
   estimatedLaborCost Float?
   estimatedTransportCost Float?

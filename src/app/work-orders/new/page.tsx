@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, X, Plus, Upload, Image as ImageIcon, Loader2 } from "lucide-react"
+import { Modal } from "@/components/ui/modal"
+import { ArrowLeft, X, Plus, Upload, Image as ImageIcon, Loader2, DollarSign } from "lucide-react"
 import { WORK_ORDER_STATUSES, PRIORITIES } from "@/lib/constants"
+import { useAuthStore } from "@/stores/authStore"
 
 interface Item {
   name: string
@@ -26,16 +28,21 @@ interface Item {
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
+  const { user } = useAuthStore()
   const [form, setForm] = useState({
     customerName: "", customerPhone: "", customerLocation: "",
     projectType: "", furnitureType: "", description: "",
     priority: "MEDIUM", dueDate: "", dimensions: "",
     notes: "", estimatedBudget: "", advanceReceived: "0", paymentTerms: "",
-    status: "DRAFT", assignedToId: "",
+    status: "DRAFT", assignedToId: "", productionManagerBudget: "",
   })
   const [items, setItems] = useState<Item[]>([])
   const [error, setError] = useState("")
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const [showPMBudget, setShowPMBudget] = useState(false)
+  const [pmBudget, setPmBudget] = useState("")
+
+  const canSetPMBudget = user?.role === "OWNER" || user?.role === "PRODUCTION_MANAGER"
 
   const { data: usersData } = useQuery({
     queryKey: ["users"],
@@ -348,6 +355,33 @@ export default function NewWorkOrderPage() {
               <label className="text-sm font-medium text-gray-700">Notes</label>
               <Textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} placeholder="Additional notes..." rows={2} />
             </div>
+            {canSetPMBudget && (
+              <div className="pt-2 border-t border-gray-100">
+                {!showPMBudget ? (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowPMBudget(true)} disabled={!form.estimatedBudget}>
+                    <DollarSign className="h-4 w-4 mr-1" /> Set Production Manager Budget
+                  </Button>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-gray-700">Production Manager Budget</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        value={pmBudget}
+                        onChange={(e) => setPmBudget(e.target.value)}
+                        placeholder="Enter PM budget"
+                        className="flex-1"
+                      />
+                      <Button type="button" size="sm" variant="success" onClick={() => { setShowPMBudget(false); update("productionManagerBudget", pmBudget) }}>Set</Button>
+                      <Button type="button" size="sm" variant="ghost" onClick={() => { setShowPMBudget(false); setPmBudget("") }}>Cancel</Button>
+                    </div>
+                    {pmBudget && Number(pmBudget) > Number(form.estimatedBudget) && (
+                      <p className="text-xs text-red-500">Production manager budget cannot exceed estimated budget ({form.estimatedBudget})</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 

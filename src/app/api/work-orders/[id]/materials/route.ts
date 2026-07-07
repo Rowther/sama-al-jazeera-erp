@@ -338,6 +338,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       return NextResponse.json({ material })
     }
 
+    if (action === "delete" && materialId) {
+      const material = await prisma.workOrderMaterial.findUnique({ where: { id: materialId } })
+      if (!material) return NextResponse.json({ message: "Material not found" }, { status: 404 })
+
+      await prisma.workOrderMaterial.delete({ where: { id: materialId } })
+
+      await prisma.activityHistory.create({
+        data: {
+          workOrderId: params.id, userId: user.userId, action: "MATERIAL_DELETED",
+          description: `Material "${material.materialName}" deleted by ${currentUser.name}`,
+        },
+      })
+
+      return NextResponse.json({ message: "Deleted" })
+    }
+
     if (materialId && (status === "APPROVED" || status === "REJECTED")) {
       const result = await prisma.$transaction(async (tx) => {
         const material = await tx.workOrderMaterial.update({

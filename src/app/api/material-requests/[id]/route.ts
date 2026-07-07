@@ -76,13 +76,18 @@ export async function PATCH(
       if (existing.workOrderId && existing.items) {
         const items = existing.items as any[]
         for (const item of items) {
+          let materialRecord: any = null
+          let wasOutOfStock = false
+
           if (item.workOrderMaterialId) {
+            materialRecord = await prisma.workOrderMaterial.findUnique({ where: { id: item.workOrderMaterialId } })
+            if (materialRecord) wasOutOfStock = materialRecord.status === "OUT_OF_STOCK"
             await prisma.workOrderMaterial.update({
               where: { id: item.workOrderMaterialId },
-              data: { status: "APPROVED" },
+              data: wasOutOfStock ? { status: "AVAILABLE" } : { status: "APPROVED" },
             })
           } else if (item.name && existing.workOrderId) {
-            const matched = await prisma.workOrderMaterial.findFirst({
+            materialRecord = await prisma.workOrderMaterial.findFirst({
               where: {
                 workOrderId: existing.workOrderId,
                 materialName: { contains: item.name, mode: "insensitive" },
@@ -90,12 +95,64 @@ export async function PATCH(
               },
               orderBy: { createdAt: "desc" },
             })
-            if (matched) {
+            if (materialRecord) {
+              wasOutOfStock = materialRecord.status === "OUT_OF_STOCK"
               await prisma.workOrderMaterial.update({
-                where: { id: matched.id },
-                data: { status: "APPROVED" },
+                where: { id: materialRecord.id },
+                data: wasOutOfStock ? { status: "AVAILABLE" } : { status: "APPROVED" },
               })
             }
+          }
+
+          if (materialRecord && wasOutOfStock) {
+            const qty = materialRecord.requiredQuantity || item.quantity || 1
+            const unit = materialRecord.unit || item.unit || "pcs"
+
+            let inventoryItem = await prisma.inventoryItem.findFirst({
+              where: { name: { contains: materialRecord.materialName, mode: "insensitive" } },
+            })
+
+            if (!inventoryItem) {
+              let category = await prisma.inventoryCategory.findFirst({ where: { name: "Custom Materials" } })
+              if (!category) category = await prisma.inventoryCategory.create({ data: { name: "Custom Materials" } })
+
+              inventoryItem = await prisma.inventoryItem.create({
+                data: {
+                  name: materialRecord.materialName,
+                  categoryId: category.id,
+                  sku: `SKU-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  unit,
+                  price: (materialRecord.estimatedCost || 0) / qty,
+                  stockQuantity: qty,
+                },
+              })
+            } else {
+              await prisma.inventoryItem.update({
+                where: { id: inventoryItem.id },
+                data: { stockQuantity: { increment: qty } },
+              })
+            }
+
+            await prisma.inventoryMovement.create({
+              data: {
+                itemId: inventoryItem.id,
+                type: "IN",
+                quantity: qty,
+                referenceId: existing.workOrderId,
+                referenceType: "MATERIAL_REQUEST",
+                notes: `Auto-added via material request approval: ${materialRecord.materialName}`,
+                createdById: user.userId,
+              },
+            })
+
+            await prisma.workOrderMaterial.update({
+              where: { id: materialRecord.id },
+              data: {
+                inventoryItemId: inventoryItem.id,
+                availableQuantity: qty,
+                missingQuantity: 0,
+              },
+            })
           }
         }
 

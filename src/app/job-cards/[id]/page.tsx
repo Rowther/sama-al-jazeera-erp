@@ -14,7 +14,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
 import { useParams, useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/authStore"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import {
   ArrowLeft, FileText, Package, Users, Clock, CheckCircle2, XCircle,
   Printer, Download, UserCheck, Building2, Ruler, Paintbrush, Wrench,
@@ -81,6 +81,25 @@ export default function EnhancedJobCardPage() {
 
   const canManage = user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "PRODUCTION_MANAGER"
   const canViewFinance = user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT"
+
+  const handlePrintPdf = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token")
+      const res = await fetch(`/api/job-cards/${params.id}/pdf`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Failed to load" }))
+        toast.error(err.message || "Failed to print job card")
+        return
+      }
+      const html = await res.text()
+      const blob = new Blob([html], { type: "text/html" })
+      window.open(URL.createObjectURL(blob), "_blank")
+    } catch {
+      toast.error("Failed to print job card")
+    }
+  }, [params.id])
 
   if (isLoading) {
     return (
@@ -158,7 +177,7 @@ export default function EnhancedJobCardPage() {
           </div>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button variant="outline" size="sm" onClick={() => window.open(`/api/job-cards/${params.id}/pdf`, "_blank")}>
+          <Button variant="outline" size="sm" onClick={handlePrintPdf}>
             <Printer className="h-4 w-4 mr-1" /> Print / PDF
           </Button>
           <Button size="sm" onClick={() => router.push(`/work-orders/${params.id}`)}>

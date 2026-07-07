@@ -92,6 +92,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         "projectType", "furnitureType", "description", "priority", "dimensions", "items",
         "notes", "paymentTerms", "status", "assignedToId",
         "finalPrice", "remainingAmount",
+        "productionManagerBudget", "productionManagerBudgetApproved",
+        "productionManagerBudgetApprovedById",
       ]
       const updateData: Record<string, unknown> = {}
       for (const key of allowedFields) {
@@ -108,6 +110,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         updateData.advanceReceived = parseFloat(data.advanceReceived)
       if (data.totalCost !== undefined && data.totalCost !== "")
         updateData.totalCost = parseFloat(data.totalCost)
+      if (data.productionManagerBudget !== undefined && data.productionManagerBudget !== "")
+        updateData.productionManagerBudget = parseFloat(data.productionManagerBudget)
+      if (data.productionManagerBudgetApprovedById !== undefined)
+        updateData.productionManagerBudgetApprovedById = data.productionManagerBudgetApprovedById
+      if (data.productionManagerBudgetApproved === true)
+        updateData.productionManagerBudgetApprovedAt = new Date()
 
       if (data.customerName && oldOrder.customerId) {
         await tx.customer.update({

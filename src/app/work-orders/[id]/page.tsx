@@ -33,6 +33,7 @@ import { PurchaseApprovalPanel } from "@/components/work-orders/purchase-approva
 import { ProgressPipeline } from "@/components/work-orders/progress-pipeline"
 import { ItemProgress } from "@/components/work-orders/item-progress"
 import { ItemDetail } from "@/components/work-orders/item-detail"
+import { ProductionManagerBudgetSection } from "@/components/work-orders/production-manager-budget"
 
 export default function WorkOrderDetailPage() {
   const router = useRouter()
@@ -311,7 +312,7 @@ export default function WorkOrderDetailPage() {
     )
   }
 
-  const canRunInventoryCheck = wo.status === "READY_FOR_PRODUCTION" && (isInventoryManager || canManage)
+  const canRunInventoryCheck = wo.status === "READY_FOR_PRODUCTION" && (isInventoryManager || canManage || user?.role === "OWNER")
 
   return (
     <div className="space-y-6 animate-fade-in max-w-6xl mx-auto">
@@ -422,6 +423,9 @@ export default function WorkOrderDetailPage() {
                 <Progress value={Math.min(Number(budgetUsage), 100)} variant={Number(budgetUsage) > 100 ? "danger" : Number(budgetUsage) > 80 ? "warning" : "default"} />
               </div>
             )}
+
+            {/* Production Manager Budget */}
+            <ProductionManagerBudgetSection workOrder={wo} user={user} statusMutation={statusMutation} />
 
             {/* Material Cost Summary */}
             {materials.length > 0 && (
@@ -724,7 +728,7 @@ export default function WorkOrderDetailPage() {
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2"><Package className="h-5 w-5 text-[#4F8EF7]" /> Required Materials</span>
               <div className="flex items-center gap-2">
-                {isInventoryManager && (
+                {(isInventoryManager || user?.role === "OWNER") && (
                   <Button size="sm" variant={materials.length === 0 ? "default" : "outline"} onClick={() => setShowAddMaterial(!showAddMaterial)}>
                     <PackagePlus className="h-4 w-4 mr-1" />
                     {showAddMaterial ? "Cancel" : materials.length === 0 ? "Add Materials" : "Add More"}
@@ -946,6 +950,11 @@ export default function WorkOrderDetailPage() {
                                       <ShoppingCart className="h-3 w-3" />
                                     </Button>
                                   )}
+                                  {(isInventoryManager || user?.role === "OWNER") && (
+                                    <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this material?")) materialActionMutation.mutate({ materialId: mat.id, action: "delete" }) }} title="Delete">
+                                      <X className="h-3 w-3 text-red-400" />
+                                    </Button>
+                                  )}
                                 </div>
                               </td>
                             </>
@@ -957,8 +966,8 @@ export default function WorkOrderDetailPage() {
                 </div>
               </div>
             )}
-            {/* Inventory Manager link */}
-            {isInventoryManager && materials.length > 0 && (
+            {/* Inventory Manager / Owner link */}
+            {(isInventoryManager || user?.role === "OWNER") && materials.length > 0 && (
               <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/dashboard/inventory-manager/analysis?workOrderId=${params.id}`)}>
                   <BarChart3 className="h-4 w-4 mr-1" /> Full Analysis
