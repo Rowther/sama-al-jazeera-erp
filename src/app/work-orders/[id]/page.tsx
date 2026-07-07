@@ -268,7 +268,9 @@ export default function WorkOrderDetailPage() {
   const purchaseEntries = purchaseEntriesData?.purchaseEntries || []
 
   const totalExpenses = (wo.expenses || []).reduce((s: number, e: any) => s + e.amount, 0)
-  const totalPayments = (wo.payments || []).reduce((s: number, p: any) => s + p.amount, 0)
+  const totalFromInstallments = (wo.installments || []).reduce((s: number, i: any) => s + i.amount, 0)
+  const totalPayments = totalFromInstallments + (wo.advanceReceived || 0)
+  const totalAmount = wo.finalPrice || 0
   const profit = totalPayments - totalExpenses
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
 
@@ -405,7 +407,11 @@ export default function WorkOrderDetailPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+              <div className="p-4 rounded-xl bg-purple-50">
+                <p className="text-xs text-gray-500">Total Amount</p>
+                <p className="text-xl font-bold text-[#8B5CF6]">{formatCurrency(totalAmount)}</p>
+              </div>
               <div className="p-4 rounded-xl bg-green-50">
                 <p className="text-xs text-gray-500">Customer Advance</p>
                 <p className="text-xl font-bold text-[#36B37E]">{formatCurrency(wo.advanceReceived)}</p>
