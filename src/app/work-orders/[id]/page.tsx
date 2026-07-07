@@ -426,17 +426,63 @@ export default function WorkOrderDetailPage() {
               </div>
             </div>
 
-            {wo.estimatedBudget && user?.role !== "PRODUCTION_MANAGER" && (
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-gray-500">Budget Usage</span>
-                  <span className={`text-sm font-medium ${Number(budgetUsage) > 100 ? "text-[#F45D5D]" : "text-[#36B37E]"}`}>
-                    {budgetUsage}% of {formatCurrency(wo.estimatedBudget)}
-                  </span>
+            {/* Budget Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {wo.estimatedBudget && user?.role !== "PRODUCTION_MANAGER" && (
+                <div className="p-4 rounded-xl border border-gray-200 bg-white">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Estimated Budget</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Total Budget</span>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(wo.estimatedBudget)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Spent So Far</span>
+                      <span className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(totalExpenses)}</span>
+                    </div>
+                    <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Remaining</span>
+                      <span className={`text-sm font-bold ${(wo.estimatedBudget - totalExpenses) >= 0 ? 'text-[#36B37E]' : 'text-[#F45D5D]'}`}>
+                        {formatCurrency(Math.max(0, wo.estimatedBudget - totalExpenses))}
+                      </span>
+                    </div>
+                  </div>
+                  {wo.estimatedBudget > 0 && (
+                    <div className="mt-3">
+                      <Progress value={Math.min((totalExpenses / wo.estimatedBudget) * 100, 100)} variant={Number(budgetUsage) > 100 ? "danger" : Number(budgetUsage) > 80 ? "warning" : "default"} />
+                      <p className="text-xs text-gray-400 mt-1">{budgetUsage}% used</p>
+                    </div>
+                  )}
                 </div>
-                <Progress value={Math.min(Number(budgetUsage), 100)} variant={Number(budgetUsage) > 100 ? "danger" : Number(budgetUsage) > 80 ? "warning" : "default"} />
-              </div>
-            )}
+              )}
+              {wo.productionManagerBudget != null && (
+                <div className="p-4 rounded-xl border border-gray-200 bg-white">
+                  <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Production Manager Budget</p>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">PM Budget</span>
+                      <span className="text-sm font-bold text-gray-900">{formatCurrency(wo.productionManagerBudget)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Spent So Far</span>
+                      <span className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(totalExpenses)}</span>
+                    </div>
+                    <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">Remaining</span>
+                      <span className={`text-sm font-bold ${(wo.productionManagerBudget - totalExpenses) >= 0 ? 'text-[#36B37E]' : 'text-[#F45D5D]'}`}>
+                        {formatCurrency(Math.max(0, wo.productionManagerBudget - totalExpenses))}
+                      </span>
+                    </div>
+                  </div>
+                  {wo.productionManagerBudget > 0 && (
+                    <div className="mt-3">
+                      <Progress value={Math.min((totalExpenses / wo.productionManagerBudget) * 100, 100)} variant={Number(budgetUsage) > 100 ? "danger" : Number(budgetUsage) > 80 ? "warning" : "default"} />
+                      <p className="text-xs text-gray-400 mt-1">{wo.productionManagerBudget > 0 ? Math.min(Math.round((totalExpenses / wo.productionManagerBudget) * 100), 100) : 0}% used</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Production Manager Budget */}
             <ProductionManagerBudgetSection workOrder={wo} user={user} statusMutation={statusMutation} />
