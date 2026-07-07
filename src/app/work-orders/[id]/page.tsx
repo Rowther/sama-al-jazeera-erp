@@ -26,7 +26,7 @@ import { WORK_ORDER_STATUSES, PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/con
 import { ProductionTracking } from "@/components/work-orders/production-tracking"
 import { DigitalSignaturePanel } from "@/components/work-orders/digital-signature"
 
-import { InstallmentPayments } from "@/components/work-orders/installment-payments"
+import { Modal } from "@/components/ui/modal"
 import { ProductionStages } from "@/components/work-orders/production-stages"
 import { LaborCostTracking } from "@/components/work-orders/labor-cost-tracking"
 import { PurchaseApprovalPanel } from "@/components/work-orders/purchase-approval-panel"
@@ -45,6 +45,9 @@ export default function WorkOrderDetailPage() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [newAssignee, setNewAssignee] = useState("")
   const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [paymentAmount, setPaymentAmount] = useState("")
+  const [paymentNotes, setPaymentNotes] = useState("")
 
   const { data: usersData } = useQuery({
     queryKey: ["users"],
@@ -208,6 +211,19 @@ export default function WorkOrderDetailPage() {
       toast.success("Expense added")
       setShowExpenseForm(false)
       setExpenseForm({ category: "", amount: "", description: "", date: "" })
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const addPaymentMutation = useMutation({
+    mutationFn: (data: { amount: number; notes?: string }) =>
+      api.post("/installments", { workOrderId: params.id, ...data }),
+    onSuccess: () => {
+      toast.success("Payment recorded")
+      setShowPaymentModal(false)
+      setPaymentAmount("")
+      setPaymentNotes("")
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
     },
     onError: (err: any) => toast.error(err.message),
@@ -402,8 +418,13 @@ export default function WorkOrderDetailPage() {
       {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT" || user?.role === "PRODUCTION_MANAGER") && (
         <Card className="border-t-4 border-t-[#4F8EF7]">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-[#4F8EF7]" /> Financial Overview
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-[#4F8EF7]" /> Financial Overview</span>
+              {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
+                <Button size="sm" variant="outline" onClick={() => setShowPaymentModal(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Record Payment
+                </Button>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -420,10 +441,10 @@ export default function WorkOrderDetailPage() {
                 <p className="text-xs text-gray-500">Total Spent</p>
                 <p className="text-xl font-bold text-[#F45D5D]">{formatCurrency(totalExpenses)}</p>
               </div>
-              <div className="p-4 rounded-xl bg-[#EEF4FF]">
+              <button onClick={() => setShowPaymentModal(true)} className="p-4 rounded-xl bg-[#EEF4FF] text-left w-full cursor-pointer hover:bg-[#E0EBFF] transition-colors">
                 <p className="text-xs text-gray-500">Total Payments</p>
                 <p className="text-xl font-bold text-[#4F8EF7]">{formatCurrency(totalPayments)}</p>
-              </div>
+              </button>
               <div className={`p-4 rounded-xl ${profit >= 0 ? "bg-green-50" : "bg-red-50"}`}>
                 <p className="text-xs text-gray-500">Profit / Loss</p>
                 <p className={`text-xl font-bold ${profit >= 0 ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>
@@ -494,37 +515,87 @@ export default function WorkOrderDetailPage() {
             <ProductionManagerBudgetSection workOrder={wo} user={user} statusMutation={statusMutation} />
 
             {/* Material Cost Summary */}
-            {materials.length > 0 && (
-              <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200">
-                <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-[#4F8EF7]" /> Material Cost Summary
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400">Estimated Material Cost</p>
-                    <p className="text-sm font-semibold text-gray-900">{formatCurrency(estimatedMaterialCost)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Actual Material Cost</p>
-                    <p className={`text-sm font-semibold ${actualMaterialCost > estimatedMaterialCost ? "text-[#F45D5D]" : "text-[#36B37E]"}`}>{formatCurrency(actualMaterialCost)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Purchased Material Cost</p>
-                    <p className="text-sm font-semibold text-[#4F8EF7]">{formatCurrency(purchasedMaterialCost)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Pending Supplier Payments</p>
-                    <p className="text-sm font-semibold text-[#FFB648]">{formatCurrency(pendingSupplierPayments)}</p>
-                  </div>
+            <div className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200">
+              <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <ClipboardList className="h-4 w-4 text-[#4F8EF7]" /> Material Cost Summary
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-xs text-gray-400">Estimated Material Cost</p>
+                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(estimatedMaterialCost)}</p>
                 </div>
-                {extraCost > 0 && (
-                  <div className="mt-2 flex items-center gap-2 text-xs text-[#F45D5D]">
-                    <AlertTriangle className="h-3 w-3" />
-                    Cost overrun: {formatCurrency(extraCost)} above estimate
+                <div>
+                  <p className="text-xs text-gray-400">Actual Material Cost</p>
+                  <p className={`text-sm font-semibold ${actualMaterialCost > estimatedMaterialCost ? "text-[#F45D5D]" : "text-[#36B37E]"}`}>{formatCurrency(actualMaterialCost)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Purchased Material Cost</p>
+                  <p className="text-sm font-semibold text-[#4F8EF7]">{formatCurrency(purchasedMaterialCost)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Pending Supplier Payments</p>
+                  <p className="text-sm font-semibold text-[#FFB648]">{formatCurrency(pendingSupplierPayments)}</p>
+                </div>
+              </div>
+              {extraCost > 0 && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-[#F45D5D]">
+                  <AlertTriangle className="h-3 w-3" />
+                  Cost overrun: {formatCurrency(extraCost)} above estimate
+                </div>
+              )}
+
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-sm font-medium text-gray-700">Expenses</p>
+                  {(["OWNER", "MANAGER", "PRODUCTION_MANAGER", "INVENTORY_MANAGER"] as string[]).includes(user?.role || "") && (
+                    !showExpenseForm ? (
+                      <Button size="sm" variant="outline" onClick={() => setShowExpenseForm(true)}>
+                        <Plus className="h-4 w-4 mr-1" /> Add Expense
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => { setShowExpenseForm(false); setExpenseForm({ category: "", amount: "", description: "", date: "" }) }}>
+                        Cancel
+                      </Button>
+                    )
+                  )}
+                </div>
+                {(wo.expenses || []).length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-3">No expenses recorded</p>
+                ) : (
+                  <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
+                    {(wo.expenses || []).map((exp: any) => (
+                      <div key={exp.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-100">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{exp.category}</p>
+                          <p className="text-xs text-gray-400">{exp.description || formatDate(exp.date)}</p>
+                        </div>
+                        <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
+                {showExpenseForm && (
+                  <form onSubmit={(e) => { e.preventDefault(); addExpenseMutation.mutate(expenseForm) }} className="space-y-2 bg-white p-3 rounded-lg border border-gray-100">
+                    <div className="grid grid-cols-2 gap-2">
+                      <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm" value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })} required>
+                        <option value="">Category...</option>
+                        <option value="MATERIAL">Material</option>
+                        <option value="LABOUR">Labour</option>
+                        <option value="TRANSPORT">Transport</option>
+                        <option value="UTILITIES">Utilities</option>
+                        <option value="MAINTENANCE">Maintenance</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                      <input type="number" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="Amount" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} required />
+                    </div>
+                    <input className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="Description (optional)" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })} />
+                    <Button type="submit" size="sm" className="w-full" disabled={addExpenseMutation.isPending}>
+                      {addExpenseMutation.isPending ? "Adding..." : "Save Expense"}
+                    </Button>
+                  </form>
+                )}
               </div>
-            )}
+            </div>
 
             {costData.length > 0 && (
               <div className="h-48 mt-4">
@@ -541,6 +612,53 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
           </CardContent>
+
+          {/* Payment History Modal + Record Payment */}
+          <Modal open={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Payment History" size="md">
+            <div className="space-y-4">
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="p-3 rounded-xl bg-green-50">
+                  <p className="text-xs text-gray-500">Advance</p>
+                  <p className="text-lg font-bold text-[#36B37E]">{formatCurrency(wo.advanceReceived)}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50">
+                  <p className="text-xs text-gray-500">Total Paid</p>
+                  <p className="text-lg font-bold text-[#4F8EF7]">{formatCurrency(totalPayments)}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-50">
+                  <p className="text-xs text-gray-500">Final Price</p>
+                  <p className="text-lg font-bold text-[#8B5CF6]">{formatCurrency(totalAmount)}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {(wo.installments || []).length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No installment payments recorded</p>
+                ) : (
+                  (wo.installments || []).map((inst: any) => (
+                    <div key={inst.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{formatCurrency(inst.amount)}</p>
+                        {inst.notes && <p className="text-xs text-gray-400">{inst.notes}</p>}
+                      </div>
+                      <span className="text-xs text-gray-400">{formatDate(inst.date || inst.createdAt)}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-sm font-medium text-gray-700 mb-3">Record New Payment</p>
+                <div className="space-y-3">
+                  <Input type="number" value={paymentAmount} onChange={(e) => setPaymentAmount(e.target.value)} placeholder="Amount" />
+                  <Input value={paymentNotes} onChange={(e) => setPaymentNotes(e.target.value)} placeholder="Notes (optional)" />
+                  <Button className="w-full" onClick={() => addPaymentMutation.mutate({ amount: parseFloat(paymentAmount), notes: paymentNotes || undefined })} disabled={addPaymentMutation.isPending || !paymentAmount}>
+                    <Plus className="h-4 w-4 mr-1" /> {addPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Modal>
         </Card>
       )}
 
@@ -1095,97 +1213,7 @@ export default function WorkOrderDetailPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {!isDesigner && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Expenses</span>
-              <Badge variant={totalExpenses > 0 ? "warning" : "default"}>{formatCurrency(totalExpenses)}</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3 max-h-60 overflow-y-auto">
-              {(wo.expenses || []).length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-8">No expenses recorded</p>
-              )}
-              {(wo.expenses || []).map((exp: any) => (
-                <div key={exp.id} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{exp.category}</p>
-                    <p className="text-xs text-gray-400">{exp.description || formatDate(exp.date)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "PRODUCTION_MANAGER" || user?.role === "INVENTORY_MANAGER") && (
-              <div className="mt-3 pt-3 border-t border-gray-100">
-                {!showExpenseForm ? (
-                  <Button size="sm" variant="outline" className="w-full" onClick={() => setShowExpenseForm(true)}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Expense
-                  </Button>
-                ) : (
-                  <form onSubmit={(e) => { e.preventDefault(); addExpenseMutation.mutate(expenseForm) }} className="space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                        value={expenseForm.category}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
-                        required
-                      >
-                        <option value="">Category...</option>
-                        <option value="MATERIAL">Material</option>
-                        <option value="LABOUR">Labour</option>
-                        <option value="TRANSPORT">Transport</option>
-                        <option value="UTILITIES">Utilities</option>
-                        <option value="MAINTENANCE">Maintenance</option>
-                        <option value="OTHER">Other</option>
-                      </select>
-                      <input
-                        type="number"
-                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                        placeholder="Amount"
-                        value={expenseForm.amount}
-                        onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <input
-                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
-                      placeholder="Description (optional)"
-                      value={expenseForm.description}
-                      onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
-                    />
-                    <div className="flex gap-2">
-                      <Button type="submit" size="sm" className="flex-1" disabled={addExpenseMutation.isPending}>
-                        {addExpenseMutation.isPending ? "Adding..." : "Save Expense"}
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setShowExpenseForm(false); setExpenseForm({ category: "", amount: "", description: "", date: "" }) }}>
-                        Cancel
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-        )}
 
-        {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT" || user?.role === "PRODUCTION_MANAGER") && (
-          <InstallmentPayments
-            workOrderId={wo.id}
-            installments={wo.installments || []}
-            advanceReceived={wo.advanceReceived || 0}
-            finalPrice={wo.finalPrice}
-            remainingAmount={wo.remainingAmount}
-            currentStatus={wo.status}
-          />
-        )}
-      </div>
 
       {/* Designs */}
       <Card>
