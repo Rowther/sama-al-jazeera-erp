@@ -110,12 +110,12 @@ export default function EmployeesPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Department</label>
-                  <Input onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="Department" />
+                  <label className="text-sm font-medium text-gray-700">Trade / Job Role</label>
+                  <Input onChange={(e) => setForm({ ...form, designation: e.target.value })} placeholder="e.g., Carpenter, Electrician, Painter" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Designation</label>
-                  <Input onChange={(e) => setForm({ ...form, designation: e.target.value })} placeholder="Designation" />
+                  <label className="text-sm font-medium text-gray-700">Department</label>
+                  <Input onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder="Department" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Phone</label>

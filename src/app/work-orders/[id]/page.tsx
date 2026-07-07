@@ -306,7 +306,10 @@ export default function WorkOrderDetailPage() {
     }, []),
   ]
 
-  const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR" || u.role === "DRIVER")
+  const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR" || u.role === "DRIVER").map((u: any) => ({
+    ...u,
+    name: u.employee?.designation ? `${u.name} (${u.employee.designation})` : u.name,
+  }))
   const workOrderItems = (wo?.workOrderItems || []).map((i: any) => ({ id: i.id, name: i.name, quantity: i.quantity }))
   const canManage = user?.role === "OWNER" || user?.role === "MANAGER"
   const isDesigner = user?.role === "DESIGNER"

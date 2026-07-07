@@ -339,8 +339,8 @@ export default function NewWorkOrderPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Estimated Budget</label>
-                <Input type="number" value={form.estimatedBudget} onChange={(e) => update("estimatedBudget", e.target.value)} placeholder="Enter budget" />
+                <label className="text-sm font-medium text-gray-700">Total Job Value</label>
+                <Input type="number" value={form.estimatedBudget} onChange={(e) => update("estimatedBudget", e.target.value)} placeholder="Enter total job value" />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Advance Received</label>
