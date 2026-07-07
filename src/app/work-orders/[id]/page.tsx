@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useCallback } from "react"
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { useDebounce } from "@/hooks"
 import { toast } from "sonner"
@@ -25,7 +25,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { WORK_ORDER_STATUSES, PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
 import { ProductionTracking } from "@/components/work-orders/production-tracking"
 import { DigitalSignaturePanel } from "@/components/work-orders/digital-signature"
-import { WorkerAssignment } from "@/components/work-orders/worker-assignment"
+
 import { InstallmentPayments } from "@/components/work-orders/installment-payments"
 import { ProductionStages } from "@/components/work-orders/production-stages"
 import { LaborCostTracking } from "@/components/work-orders/labor-cost-tracking"
@@ -195,6 +195,20 @@ export default function WorkOrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["work-order-materials", params.id] })
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
       inventoryCheckMutation.mutate()
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const [expenseForm, setExpenseForm] = useState({ category: "", amount: "", description: "", date: "" })
+
+  const addExpenseMutation = useMutation({
+    mutationFn: (data: any) => api.post(`/work-orders/${params.id}/expenses`, data),
+    onSuccess: () => {
+      toast.success("Expense added")
+      setShowExpenseForm(false)
+      setExpenseForm({ category: "", amount: "", description: "", date: "" })
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
     },
     onError: (err: any) => toast.error(err.message),
   })
@@ -1029,8 +1043,8 @@ export default function WorkOrderDetailPage() {
         </Card>
       )}
 
-      <div className={`grid grid-cols-1 gap-6 ${!isDesigner && !isInventoryManager ? 'lg:grid-cols-2' : ''}`}>
-        {!isDesigner && !isInventoryManager && (
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {!isDesigner && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -1049,10 +1063,62 @@ export default function WorkOrderDetailPage() {
                     <p className="text-sm font-medium text-gray-900">{exp.category}</p>
                     <p className="text-xs text-gray-400">{exp.description || formatDate(exp.date)}</p>
                   </div>
-                  <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
+                  </div>
                 </div>
               ))}
             </div>
+            {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "PRODUCTION_MANAGER" || user?.role === "INVENTORY_MANAGER") && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                {!showExpenseForm ? (
+                  <Button size="sm" variant="outline" className="w-full" onClick={() => setShowExpenseForm(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> Add Expense
+                  </Button>
+                ) : (
+                  <form onSubmit={(e) => { e.preventDefault(); addExpenseMutation.mutate(expenseForm) }} className="space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <select
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                        value={expenseForm.category}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                        required
+                      >
+                        <option value="">Category...</option>
+                        <option value="MATERIAL">Material</option>
+                        <option value="LABOUR">Labour</option>
+                        <option value="TRANSPORT">Transport</option>
+                        <option value="UTILITIES">Utilities</option>
+                        <option value="MAINTENANCE">Maintenance</option>
+                        <option value="OTHER">Other</option>
+                      </select>
+                      <input
+                        type="number"
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                        placeholder="Amount"
+                        value={expenseForm.amount}
+                        onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <input
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                      placeholder="Description (optional)"
+                      value={expenseForm.description}
+                      onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
+                    />
+                    <div className="flex gap-2">
+                      <Button type="submit" size="sm" className="flex-1" disabled={addExpenseMutation.isPending}>
+                        {addExpenseMutation.isPending ? "Adding..." : "Save Expense"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowExpenseForm(false); setExpenseForm({ category: "", amount: "", description: "", date: "" }) }}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
         )}
@@ -1068,14 +1134,6 @@ export default function WorkOrderDetailPage() {
           />
         )}
       </div>
-
-      <WorkerAssignment
-        workOrderId={wo.id}
-        workers={wo.workerAssignments || []}
-        labourUsers={labourUsers}
-        currentStatus={wo.status}
-        workOrderItems={workOrderItems}
-      />
 
       {/* Designs */}
       <Card>
