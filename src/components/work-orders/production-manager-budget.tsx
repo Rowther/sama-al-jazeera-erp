@@ -19,7 +19,7 @@ export function ProductionManagerBudgetSection({ workOrder, user, statusMutation
   const [showApprove, setShowApprove] = useState(false)
 
   const canManage = user?.role === "OWNER" || user?.role === "MANAGER"
-  const canSet = user?.role === "OWNER" || user?.role === "PRODUCTION_MANAGER"
+  const canSet = user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "PRODUCTION_MANAGER"
   const budgetSet = workOrder.productionManagerBudget != null
   const budgetApproved = workOrder.productionManagerBudgetApproved
   const exceedsBudget = budgetSet && workOrder.estimatedBudget && Number(workOrder.productionManagerBudget) > Number(workOrder.estimatedBudget)

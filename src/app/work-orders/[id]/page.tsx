@@ -426,7 +426,7 @@ export default function WorkOrderDetailPage() {
               </div>
             </div>
 
-            {wo.estimatedBudget && (
+            {wo.estimatedBudget && user?.role !== "PRODUCTION_MANAGER" && (
               <div className="mb-4">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500">Budget Usage</span>
