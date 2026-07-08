@@ -203,6 +203,7 @@ export default function WorkOrderDetailPage() {
   })
 
   const [showExpenseForm, setShowExpenseForm] = useState(false)
+  const [editingExpense, setEditingExpense] = useState<string | null>(null)
   const [expenseForm, setExpenseForm] = useState({ category: "", amount: "", description: "", date: "" })
 
   const addExpenseMutation = useMutation({
@@ -211,6 +212,27 @@ export default function WorkOrderDetailPage() {
       toast.success("Expense added")
       setShowExpenseForm(false)
       setExpenseForm({ category: "", amount: "", description: "", date: "" })
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const editExpenseMutation = useMutation({
+    mutationFn: ({ expenseId, ...data }: any) => api.patch(`/work-orders/${params.id}/expenses/${expenseId}`, data),
+    onSuccess: () => {
+      toast.success("Expense updated")
+      setShowExpenseForm(false)
+      setEditingExpense(null)
+      setExpenseForm({ category: "", amount: "", description: "", date: "" })
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: (expenseId: string) => api.delete(`/work-orders/${params.id}/expenses/${expenseId}`),
+    onSuccess: () => {
+      toast.success("Expense deleted")
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
     },
     onError: (err: any) => toast.error(err.message),
@@ -556,7 +578,7 @@ export default function WorkOrderDetailPage() {
                         <Plus className="h-4 w-4 mr-1" /> Add Expense
                       </Button>
                     ) : (
-                      <Button size="sm" variant="ghost" onClick={() => { setShowExpenseForm(false); setExpenseForm({ category: "", amount: "", description: "", date: "" }) }}>
+                      <Button size="sm" variant="ghost" onClick={() => { setShowExpenseForm(false); setEditingExpense(null); setExpenseForm({ category: "", amount: "", description: "", date: "" }) }}>
                         Cancel
                       </Button>
                     )
@@ -572,13 +594,36 @@ export default function WorkOrderDetailPage() {
                           <p className="text-sm font-medium text-gray-900">{exp.category}</p>
                           <p className="text-xs text-gray-400">{exp.description || formatDate(exp.date)}</p>
                         </div>
-                        <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
+                          {(user?.role === "OWNER" || user?.role === "MANAGER") && (
+                            <div className="flex gap-0.5">
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                setEditingExpense(exp.id)
+                                setExpenseForm({ category: exp.category, amount: String(exp.amount), description: exp.description || "", date: exp.date ? exp.date.split("T")[0] : "" })
+                                setShowExpenseForm(true)
+                              }}>
+                                <Edit className="h-3 w-3 text-[#4F8EF7]" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this expense?")) deleteExpenseMutation.mutate(exp.id) }}>
+                                <X className="h-3 w-3 text-red-400" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
                 {showExpenseForm && (
-                  <form onSubmit={(e) => { e.preventDefault(); addExpenseMutation.mutate(expenseForm) }} className="space-y-2 bg-white p-3 rounded-lg border border-gray-100">
+                  <form onSubmit={(e) => {
+                    e.preventDefault()
+                    if (editingExpense) {
+                      editExpenseMutation.mutate({ expenseId: editingExpense, ...expenseForm })
+                    } else {
+                      addExpenseMutation.mutate(expenseForm)
+                    }
+                  }} className="space-y-2 bg-white p-3 rounded-lg border border-gray-100">
                     <div className="grid grid-cols-2 gap-2">
                       <select className="rounded-xl border border-gray-200 px-3 py-2 text-sm" value={expenseForm.category} onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })} required>
                         <option value="">Category...</option>
@@ -592,8 +637,8 @@ export default function WorkOrderDetailPage() {
                       <input type="number" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="Amount" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} required />
                     </div>
                     <input className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm" placeholder="Description (optional)" value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })} />
-                    <Button type="submit" size="sm" className="w-full" disabled={addExpenseMutation.isPending}>
-                      {addExpenseMutation.isPending ? "Adding..." : "Save Expense"}
+                    <Button type="submit" size="sm" className="w-full" disabled={addExpenseMutation.isPending || editExpenseMutation.isPending}>
+                      {editExpenseMutation.isPending ? "Updating..." : addExpenseMutation.isPending ? "Adding..." : editingExpense ? "Update Expense" : "Save Expense"}
                     </Button>
                   </form>
                 )}
