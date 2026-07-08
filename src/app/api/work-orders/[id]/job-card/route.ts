@@ -50,6 +50,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
               },
               orderBy: { createdAt: "asc" },
             },
+            laborEntries: {
+              include: {
+                worker: { select: { id: true, name: true, role: true } },
+                productionStage: { select: { stageName: true } },
+              },
+              orderBy: { date: "desc" },
+            },
             activities: { include: { user: { select: { name: true } } }, orderBy: { createdAt: "asc" } },
           },
         },

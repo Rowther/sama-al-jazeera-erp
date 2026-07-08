@@ -137,6 +137,12 @@ export default function EnhancedJobCardPage() {
   const stages = wo?.productionStages || []
   const jc = jobCard || {}
 
+  const laborEntries = wo?.laborEntries || []
+  const totalLaborCost = laborEntries.reduce((s: number, e: any) => s + e.totalCost, 0)
+  const totalHours = laborEntries.reduce((s: number, e: any) => s + e.hoursWorked + e.overtimeHours, 0)
+  const uniqueWorkers = [...new Set(laborEntries.map((e: any) => e.worker.id))].length
+  const avgRate = totalHours > 0 ? totalLaborCost / totalHours : 0
+
   const completedStages = stages.filter((s: any) => s.status === "COMPLETED")
   const activeStages = stages.filter((s: any) => s.status === "IN_PROGRESS")
   const delayedStages = stages.filter((s: any) => s.isDelayed)
@@ -458,6 +464,56 @@ export default function EnhancedJobCardPage() {
                 <p className="text-sm font-semibold text-gray-900 mt-1">{workers.length} assigned</p>
               </div>
             </div>
+
+            {/* Labor Cost Tracking */}
+            {laborEntries.length > 0 && (
+              <div className="mb-6">
+                <p className="text-xs text-gray-500 font-medium mb-3">Labor Cost Tracking</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                  <div className="p-3 rounded-xl bg-red-50">
+                    <p className="text-[10px] text-gray-400 uppercase">Total Labor Cost</p>
+                    <p className="text-lg font-bold text-[#F45D5D]">{formatCurrency(totalLaborCost)}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-blue-50">
+                    <p className="text-[10px] text-gray-400 uppercase">Total Hours</p>
+                    <p className="text-lg font-bold text-[#4F8EF7]">{totalHours.toFixed(1)}h</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-purple-50">
+                    <p className="text-[10px] text-gray-400 uppercase">Workers</p>
+                    <p className="text-lg font-bold text-purple-600">{uniqueWorkers}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-amber-50">
+                    <p className="text-[10px] text-gray-400 uppercase">Avg Rate</p>
+                    <p className="text-lg font-bold text-[#FFB648]">{formatCurrency(avgRate)}/hr</p>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {laborEntries.map((entry: any) => (
+                    <div key={entry.id} className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-7 w-7 rounded-full bg-[#F45D5D]/10 flex items-center justify-center">
+                          <span className="text-[10px] font-semibold text-[#F45D5D]">
+                            {entry.worker.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{entry.worker.name}</p>
+                          <p className="text-xs text-gray-400">
+                            {entry.hoursWorked}h × {formatCurrency(entry.hourlyRate)}/hr
+                            {entry.overtimeHours > 0 && ` + ${entry.overtimeHours}h OT`}
+                            {entry.productionStage && ` • ${entry.productionStage.stageName}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(entry.totalCost)}</p>
+                        <p className="text-xs text-gray-400">{formatDate(entry.date)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Production Stages Visual Pipeline */}
             {stages.length > 0 && (
