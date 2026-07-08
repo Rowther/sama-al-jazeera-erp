@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -42,6 +42,8 @@ export default function NewWorkOrderPage() {
   const [showPMBudget, setShowPMBudget] = useState(false)
   const [pmBudget, setPmBudget] = useState("")
 
+  const designerRef = useRef<HTMLDivElement>(null)
+  const isOwnerOrManager = user?.role === "OWNER" || user?.role === "MANAGER"
   const canSetPMBudget = user?.role === "OWNER" || user?.role === "PRODUCTION_MANAGER"
 
   const { data: usersData } = useQuery({
@@ -100,6 +102,11 @@ export default function NewWorkOrderPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    if (isOwnerOrManager && !form.assignedToId) {
+      setError("Please assign a designer before creating the work order")
+      designerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      return
+    }
     mutation.mutate(form)
   }
 
@@ -181,14 +188,19 @@ export default function NewWorkOrderPage() {
                   onChange={(e) => update("status", e.target.value)}
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Assign Designer</label>
+              <div ref={designerRef} className="space-y-2">
+                <label className={`text-sm font-medium ${isOwnerOrManager && !form.assignedToId && error ? "text-red-600" : "text-gray-700"}`}>
+                  Assign Designer {isOwnerOrManager && <span className="text-red-500">*</span>}
+                </label>
                 <Select
                   options={designers.map((d: any) => ({ value: d.id, label: d.name }))}
                   value={form.assignedToId}
                   onChange={(e) => update("assignedToId", e.target.value)}
                   placeholder="Select designer"
                 />
+                {isOwnerOrManager && !form.assignedToId && error && (
+                  <p className="text-xs text-red-500">A designer must be assigned</p>
+                )}
               </div>
             </div>
             <div className="space-y-2">
