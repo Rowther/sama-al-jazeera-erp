@@ -71,7 +71,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         status = "OUT_OF_STOCK"; availableQty = 0; missingQty = requiredQty
       }
 
-      return { ...mat, computedStatus: status, computedAvailableQuantity: availableQty, computedMissingQuantity: missingQty, inventoryMatches: matchingItems.map(i => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit })) }
+      return { ...mat, computedStatus: status, computedAvailableQuantity: availableQty, computedMissingQuantity: missingQty, totalStockQuantity: totalAvailable, inventoryMatches: matchingItems.map(i => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit })) }
     })
 
     return NextResponse.json({ materials: enriched })

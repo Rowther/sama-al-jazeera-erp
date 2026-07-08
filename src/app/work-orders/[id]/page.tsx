@@ -1072,6 +1072,7 @@ export default function WorkOrderDetailPage() {
                       <tr className="border-b border-gray-100">
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Material</th>
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Req</th>
+                        {(isInventoryManager || canManage) && <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Total</th>}
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Avail</th>
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Missing</th>
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Status</th>
@@ -1082,7 +1083,7 @@ export default function WorkOrderDetailPage() {
                       {materials.map((mat: any) => (
                         <tr key={mat.id} className="border-b border-gray-50">
                           {editingMaterial === mat.id ? (
-                            <td colSpan={6} className="py-2 px-2">
+                            <td colSpan={isInventoryManager || canManage ? 7 : 6} className="py-2 px-2">
                               <div className="flex gap-2 items-start">
                                 <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2">
                                   <Input size={8} value={editForm.materialName || mat.materialName} onChange={(e: any) => setEditForm({ ...editForm, materialName: e.target.value })} placeholder="Name" />
@@ -1102,6 +1103,7 @@ export default function WorkOrderDetailPage() {
                             <>
                               <td className="py-2 px-2 font-medium text-gray-900">{mat.materialName}</td>
                               <td className="py-2 px-2">{mat.requiredQuantity} {mat.unit}</td>
+                              {(isInventoryManager || canManage) && <td className="py-2 px-2 font-medium text-[#4F8EF7]">{mat.totalStockQuantity ?? "—"}</td>}
                               <td className="py-2 px-2">{mat.availableQuantity || 0}</td>
                               <td className="py-2 px-2 text-[#F45D5D]">{mat.missingQuantity || 0}</td>
                               <td className="py-2 px-2">
