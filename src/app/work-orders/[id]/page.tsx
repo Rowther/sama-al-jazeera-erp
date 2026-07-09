@@ -308,7 +308,7 @@ export default function WorkOrderDetailPage() {
   const totalExpenses = (wo.expenses || []).reduce((s: number, e: any) => s + e.amount, 0)
   const totalFromInstallments = (wo.installments || []).reduce((s: number, i: any) => s + i.amount, 0)
   const totalPayments = totalFromInstallments + (wo.advanceReceived || 0)
-  const totalAmount = wo.finalPrice || 0
+  const totalAmount = wo.finalPrice || wo.estimatedBudget || 0
   const profit = totalPayments - totalExpenses
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
 
