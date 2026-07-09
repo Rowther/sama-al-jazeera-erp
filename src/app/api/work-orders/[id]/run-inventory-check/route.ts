@@ -26,52 +26,51 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         let matchingItems: any[] = []
         const seen = new Set<string>()
 
-        // 1. Always include the directly-linked item if set
         if (mat.inventoryItemId) {
+          // User explicitly chose an inventory item — ONLY use that one, no fuzzy matching
           const directItem = allInventory.find(i => i.id === mat.inventoryItemId)
           if (directItem) {
             matchingItems.push(directItem)
             seen.add(directItem.id)
           }
-        }
+        } else {
+          // No direct link — try SKU / name matching
+          const normalizedName = mat.materialName.toLowerCase().trim()
 
-        const normalizedName = mat.materialName.toLowerCase().trim()
-
-        // 2. Try SKU match
-        const skuMatches = allInventory.filter((item) => {
-          if (seen.has(item.id)) return false
-          const itemSku = item.sku?.toLowerCase().trim()
-          return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
-        })
-        for (const item of skuMatches) {
-          matchingItems.push(item)
-          seen.add(item.id)
-        }
-
-        // 3. Try name match (if SKU found nothing)
-        if (skuMatches.length === 0) {
-          const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 1)
-
-          const nameMatches = allInventory.filter((item) => {
+          const skuMatches = allInventory.filter((item) => {
             if (seen.has(item.id)) return false
-            const itemName = item.name.toLowerCase().trim()
-            const itemWords = itemName.split(/\s+/).filter(w => w.length > 1)
-
-            if (itemName === normalizedName) return true
-            if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
-
-            const sharedWords = nameWords.filter(w => itemWords.includes(w))
-            const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
-            if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
-            if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
-              const catShared = nameWords.filter(w => itemWords.includes(w))
-              return catShared.length >= 2
-            }
-            return false
+            const itemSku = item.sku?.toLowerCase().trim()
+            return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
           })
-          for (const item of nameMatches) {
+          for (const item of skuMatches) {
             matchingItems.push(item)
             seen.add(item.id)
+          }
+
+          if (skuMatches.length === 0) {
+            const nameWords = normalizedName.split(/\s+/).filter(w => w.length > 1)
+
+            const nameMatches = allInventory.filter((item) => {
+              if (seen.has(item.id)) return false
+              const itemName = item.name.toLowerCase().trim()
+              const itemWords = itemName.split(/\s+/).filter(w => w.length > 1)
+
+              if (itemName === normalizedName) return true
+              if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
+
+              const sharedWords = nameWords.filter(w => itemWords.includes(w))
+              const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+              if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
+              if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
+                const catShared = nameWords.filter(w => itemWords.includes(w))
+                return catShared.length >= 2
+              }
+              return false
+            })
+            for (const item of nameMatches) {
+              matchingItems.push(item)
+              seen.add(item.id)
+            }
           }
         }
 

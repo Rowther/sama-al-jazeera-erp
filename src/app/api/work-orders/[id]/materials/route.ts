@@ -21,40 +21,41 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const allInventory = await prisma.inventoryItem.findMany({ include: { category: true } })
 
     const enriched = materials.map(mat => {
-      const normalizedName = mat.materialName.toLowerCase().trim()
       let matchingItems: any[] = []
       const seen = new Set<string>()
 
       if (mat.inventoryItemId) {
         const directItem = allInventory.find(i => i.id === mat.inventoryItemId)
         if (directItem) { matchingItems.push(directItem); seen.add(directItem.id) }
-      }
+      } else {
+        const normalizedName = mat.materialName.toLowerCase().trim()
 
-      const skuMatches = allInventory.filter(item => {
-        if (seen.has(item.id)) return false
-        const itemSku = item.sku?.toLowerCase().trim()
-        return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
-      })
-      for (const item of skuMatches) { matchingItems.push(item); seen.add(item.id) }
-
-      if (skuMatches.length === 0) {
-        const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
-        const nameMatches = allInventory.filter(item => {
+        const skuMatches = allInventory.filter(item => {
           if (seen.has(item.id)) return false
-          const itemName = item.name.toLowerCase().trim()
-          const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
-          if (itemName === normalizedName) return true
-          if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
-          const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
-          const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
-          if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
-          if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
-            const catShared = nameWords.filter((w: string) => itemWords.includes(w))
-            return catShared.length >= 2
-          }
-          return false
+          const itemSku = item.sku?.toLowerCase().trim()
+          return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
         })
-        for (const item of nameMatches) { matchingItems.push(item); seen.add(item.id) }
+        for (const item of skuMatches) { matchingItems.push(item); seen.add(item.id) }
+
+        if (skuMatches.length === 0) {
+          const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
+          const nameMatches = allInventory.filter(item => {
+            if (seen.has(item.id)) return false
+            const itemName = item.name.toLowerCase().trim()
+            const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
+            if (itemName === normalizedName) return true
+            if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
+            const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
+            const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+            if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
+            if (mat.category && item.category?.name?.toLowerCase() === mat.category.toLowerCase()) {
+              const catShared = nameWords.filter((w: string) => itemWords.includes(w))
+              return catShared.length >= 2
+            }
+            return false
+          })
+          for (const item of nameMatches) { matchingItems.push(item); seen.add(item.id) }
+        }
       }
 
       const totalAvailable = matchingItems.reduce((sum, item) => sum + item.stockQuantity, 0)
@@ -133,52 +134,51 @@ async function deductInventoryForMaterial(tx: any, material: any, userId: string
   let matchingItems: any[] = []
   const seen = new Set<string>()
 
-  // 1. Always include the directly-linked item if set
   if (material.inventoryItemId) {
+    // User explicitly chose an inventory item — ONLY use that one, no fuzzy matching
     const directItem = allInventory.find((i: any) => i.id === material.inventoryItemId)
     if (directItem) {
       matchingItems.push(directItem)
       seen.add(directItem.id)
     }
-  }
+  } else {
+    // No direct link — try SKU / name matching to find the best candidate
+    const normalizedName = material.materialName.toLowerCase().trim()
 
-  const normalizedName = material.materialName.toLowerCase().trim()
-
-  // 2. Try SKU match
-  const skuMatches = allInventory.filter((item: any) => {
-    if (seen.has(item.id)) return false
-    const itemSku = item.sku?.toLowerCase().trim()
-    return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
-  })
-  for (const item of skuMatches) {
-    matchingItems.push(item)
-    seen.add(item.id)
-  }
-
-  // 3. Try name match (if SKU found nothing)
-  if (skuMatches.length === 0) {
-    const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
-
-    const nameMatches = allInventory.filter((item: any) => {
+    const skuMatches = allInventory.filter((item: any) => {
       if (seen.has(item.id)) return false
-      const itemName = item.name.toLowerCase().trim()
-      const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
-
-      if (itemName === normalizedName) return true
-      if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
-
-      const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
-      const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
-      if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
-      if (material.category && item.category?.name?.toLowerCase() === material.category.toLowerCase()) {
-        const catShared = nameWords.filter((w: string) => itemWords.includes(w))
-        return catShared.length >= 2
-      }
-      return false
+      const itemSku = item.sku?.toLowerCase().trim()
+      return itemSku === normalizedName || itemSku?.includes(normalizedName) || normalizedName.includes(itemSku || "")
     })
-    for (const item of nameMatches) {
+    for (const item of skuMatches) {
       matchingItems.push(item)
       seen.add(item.id)
+    }
+
+    if (skuMatches.length === 0) {
+      const nameWords = normalizedName.split(/\s+/).filter((w: string) => w.length > 1)
+
+      const nameMatches = allInventory.filter((item: any) => {
+        if (seen.has(item.id)) return false
+        const itemName = item.name.toLowerCase().trim()
+        const itemWords = itemName.split(/\s+/).filter((w: string) => w.length > 1)
+
+        if (itemName === normalizedName) return true
+        if (itemName.includes(normalizedName) || normalizedName.includes(itemName)) return true
+
+        const sharedWords = nameWords.filter((w: string) => itemWords.includes(w))
+        const matchRatio = sharedWords.length / Math.max(nameWords.length, itemWords.length)
+        if (matchRatio >= 0.5 && sharedWords.length >= 2) return true
+        if (material.category && item.category?.name?.toLowerCase() === material.category.toLowerCase()) {
+          const catShared = nameWords.filter((w: string) => itemWords.includes(w))
+          return catShared.length >= 2
+        }
+        return false
+      })
+      for (const item of nameMatches) {
+        matchingItems.push(item)
+        seen.add(item.id)
+      }
     }
   }
 
@@ -242,18 +242,27 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
 
         for (const mat of pendingMaterials) {
-          const expenseAmount = mat.estimatedCost || mat.actualCost || 0
-          if (expenseAmount > 0) {
-            await tx.expense.create({
-              data: {
-                workOrderId: params.id,
-                category: "MATERIAL",
-                amount: expenseAmount,
-                description: `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`,
-                approvedById: user.userId,
-              },
+          let expenseAmount = mat.estimatedCost || mat.actualCost || 0
+          if (mat.inventoryItemId) {
+            const invItem = await tx.inventoryItem.findUnique({
+              where: { id: mat.inventoryItemId },
+              select: { price: true },
             })
+            if (invItem && invItem.price > 0) {
+              expenseAmount = invItem.price * mat.requiredQuantity
+            }
           }
+
+          await tx.expense.create({
+            data: {
+              workOrderId: params.id,
+              category: "MATERIAL",
+              amount: expenseAmount,
+              description: `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`,
+              approvedById: user.userId,
+            },
+          })
+
           await deductInventoryForMaterial(tx, mat, user.userId)
         }
 
@@ -371,27 +380,35 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
 
         if (status === "APPROVED") {
-          const expenseAmount = material.estimatedCost || material.actualCost || 0
-          if (expenseAmount > 0) {
-            await tx.expense.create({
-              data: {
-                workOrderId: params.id,
-                category: "MATERIAL",
-                amount: expenseAmount,
-                description: `Material: ${material.materialName}${material.category ? ` (${material.category})` : ""}`,
-                approvedById: user.userId,
-              },
+          let expenseAmount = material.estimatedCost || material.actualCost || 0
+          if (material.inventoryItemId) {
+            const invItem = await tx.inventoryItem.findUnique({
+              where: { id: material.inventoryItemId },
+              select: { price: true },
             })
-
-            const totalExpenses = await tx.expense.aggregate({
-              where: { workOrderId: params.id },
-              _sum: { amount: true },
-            })
-            await tx.workOrder.update({
-              where: { id: params.id },
-              data: { totalCost: totalExpenses._sum.amount || 0 },
-            })
+            if (invItem && invItem.price > 0) {
+              expenseAmount = invItem.price * material.requiredQuantity
+            }
           }
+
+          await tx.expense.create({
+            data: {
+              workOrderId: params.id,
+              category: "MATERIAL",
+              amount: expenseAmount,
+              description: `Material: ${material.materialName}${material.category ? ` (${material.category})` : ""}`,
+              approvedById: user.userId,
+            },
+          })
+
+          const totalExpenses = await tx.expense.aggregate({
+            where: { workOrderId: params.id },
+            _sum: { amount: true },
+          })
+          await tx.workOrder.update({
+            where: { id: params.id },
+            data: { totalCost: totalExpenses._sum.amount || 0 },
+          })
 
           await deductInventoryForMaterial(tx, material, user.userId)
 
