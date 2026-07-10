@@ -54,10 +54,32 @@ export async function POST(request: NextRequest) {
     }
 
     const sessionId = crypto.randomUUID()
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { loginAttempts: 0, lockoutUntil: null, refreshToken: sessionId, lastLogin: new Date() },
-    })
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || null
+    const userAgent = request.headers.get("user-agent") || null
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { loginAttempts: 0, lockoutUntil: null, refreshToken: sessionId, lastLogin: new Date() },
+      }),
+      prisma.userSession.create({
+        data: {
+          userId: user.id,
+          ip,
+          userAgent,
+        },
+      }),
+      prisma.auditLog.create({
+        data: {
+          userId: user.id,
+          action: "LOGIN",
+          entity: "USER",
+          entityId: user.id,
+          ip,
+          userAgent,
+        },
+      }),
+    ])
 
     const tokenPayload = { userId: user.id, email: user.email, role: user.role }
     const token = generateToken(tokenPayload)

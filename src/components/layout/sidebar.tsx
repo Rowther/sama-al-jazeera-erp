@@ -10,7 +10,7 @@ import {
   LayoutDashboard, ClipboardList, BarChart3, Users, Wallet, Landmark,
   Package, Settings, PlusCircle, PenTool, ShoppingCart, Building2,
   Receipt, CreditCard, FileText, ChevronLeft, LogOut, Menu,
-  AlertTriangle, X, Search, ClipboardCheck, Bell, Calendar, Factory
+  AlertTriangle, X, Search, ClipboardCheck, Bell, Calendar, Factory, Terminal
 } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
 
@@ -35,6 +35,7 @@ const iconMap: Record<string, React.ReactNode> = {
   Bell: <Bell className="h-5 w-5" />,
   Calendar: <Calendar className="h-5 w-5" />,
   Factory: <Settings className="h-5 w-5" />,
+  Terminal: <Terminal className="h-5 w-5" />,
 }
 
 export function Sidebar() {

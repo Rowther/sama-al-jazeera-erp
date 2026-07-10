@@ -83,7 +83,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      await api.post('/auth/logout')
+    } catch {
+      // ignore logout errors
+    }
     storage?.removeItem('token')
     storage?.removeItem('sessionId')
     set({ user: null, token: null, sessionId: null, isAuthenticated: false, isLoading: false, error: null })

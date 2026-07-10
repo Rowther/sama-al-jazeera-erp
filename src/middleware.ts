@@ -2,6 +2,35 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { rateLimit, getClientIp } from '@/lib/rate-limiter'
 
+function decodeJWTPayload(token: string): { userId: string; email: string; role: string } | null {
+  try {
+    const payload = token.split('.')[1]
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')))
+    return { userId: decoded.userId, email: decoded.email, role: decoded.role }
+  } catch {
+    return null
+  }
+}
+
+const LOGGED_ACTIONS: Record<string, string> = {
+  GET: "VIEW",
+  POST: "CREATE",
+  PUT: "UPDATE",
+  PATCH: "UPDATE",
+  DELETE: "DELETE",
+}
+
+function shouldLog(pathname: string): boolean {
+  if (!pathname.startsWith('/api')) return false
+  if (pathname === '/api/_log') return false
+  if (pathname === '/api/auth/login') return false
+  if (pathname === '/api/auth/logout') return false
+  if (pathname.startsWith('/api/auth/me')) return false
+  if (pathname === '/api/health') return false
+  if (pathname.startsWith('/api/uploads')) return false
+  return true
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -32,6 +61,33 @@ export function middleware(request: NextRequest) {
           'Retry-After': String(Math.ceil((result.resetAt - Date.now()) / 1000)),
         },
       })
+    }
+
+    if (shouldLog(pathname)) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.substring(7)
+        const user = decodeJWTPayload(token)
+        if (user) {
+          const entity = pathname.replace(/^\/api\//, '').split('/')[0].toUpperCase()
+          const method = request.method
+          const action = LOGGED_ACTIONS[method] || method
+
+          const logData = {
+            userId: user.userId,
+            action,
+            entity,
+            entityId: pathname,
+          }
+
+          const logUrl = new URL('/api/_log', request.url).toString()
+          fetch(logUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(logData),
+          }).catch(() => {})
+        }
+      }
     }
   }
 

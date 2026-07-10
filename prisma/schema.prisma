@@ -194,6 +194,8 @@ model User {
   materialRequests          MaterialRequest[] @relation("MaterialRequestRequester")
   materialApprovals         MaterialRequest[] @relation("MaterialRequestApprovedBy")
 
+  sessions                  UserSession[]
+
   @@index([role])
   @@index([isActive])
 }
@@ -1006,6 +1008,21 @@ model AuditLog {
   ip          String?
   userAgent   String?
   createdAt   DateTime @default(now())
+}
+
+model UserSession {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  loginAt         DateTime  @default(now())
+  logoutAt        DateTime?
+  lastActivityAt  DateTime  @default(now())
+  ip              String?
+  userAgent       String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
+  @@index([loginAt])
 }
 
 model Document {

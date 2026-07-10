@@ -61,6 +61,7 @@ export const NAV_ITEMS = {
     { label: 'Suppliers', href: '/suppliers', icon: 'Building2' },
     { label: 'Notifications', href: '/notifications', icon: 'Bell' },
     { label: 'Audit Log', href: '/audit-log', icon: 'Search' },
+    { label: 'Developer', href: '/developer/analytics', icon: 'Terminal' },
     { label: 'Settings', href: '/settings', icon: 'Settings' },
   ],
   MANAGER: [
