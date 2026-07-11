@@ -67,6 +67,22 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ message: "Work order not found" }, { status: 404 })
     }
 
+    const totalInstallments = order.installments.reduce((s: number, i: any) => s + i.amount, 0)
+    if (totalInstallments > 0 && order.advanceReceived > 0) {
+      const correctAdvance = Math.max(0, order.advanceReceived - totalInstallments)
+      if (correctAdvance !== order.advanceReceived) {
+        const remainingAmount = order.finalPrice
+          ? Math.max(0, order.finalPrice - correctAdvance - totalInstallments)
+          : order.remainingAmount
+        await prisma.workOrder.update({
+          where: { id: params.id },
+          data: { advanceReceived: correctAdvance, remainingAmount },
+        })
+        order.advanceReceived = correctAdvance
+        order.remainingAmount = remainingAmount
+      }
+    }
+
     return NextResponse.json({ workOrder: order })
   } catch (error) {
     console.error("Work order fetch error:", error)
