@@ -1234,9 +1234,8 @@ export default function WorkOrderDetailPage() {
                 <Button variant="outline" size="sm" className="flex-1" onClick={() => router.push(`/dashboard/inventory-manager/analysis?workOrderId=${params.id}`)}>
                   <BarChart3 className="h-4 w-4 mr-1" /> Full Analysis
                 </Button>
-                <Button size="sm" className="flex-1" onClick={() => sendMaterialRequestMutation.mutate()} disabled={sendMaterialRequestMutation.isPending}>
-                  <ClipboardList className="h-4 w-4 mr-1" />
-                  {sendMaterialRequestMutation.isPending ? "Sending..." : "Send Material Request"}
+                <Button size="sm" className="flex-1" onClick={() => setShowAddMaterial(true)}>
+                  <PackagePlus className="h-4 w-4 mr-1" /> Add More
                 </Button>
               </div>
             )}
