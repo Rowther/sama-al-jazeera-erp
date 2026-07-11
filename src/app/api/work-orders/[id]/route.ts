@@ -197,6 +197,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
               description: item.description || null,
               dimensions: item.dimensions || null,
               notes: item.notes || null,
+              image: item.image || null,
             },
           })
         }

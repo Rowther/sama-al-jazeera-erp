@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { toast } from "sonner"
@@ -10,14 +10,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft, X, UserPlus, Plus } from "lucide-react"
+import { ArrowLeft, X, UserPlus, Plus, Upload, Image as ImageIcon } from "lucide-react"
 import { WORK_ORDER_STATUSES, PRIORITIES } from "@/lib/constants"
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
   const params = useParams()
   const [form, setForm] = useState<any>(null)
-  const [items, setItems] = useState<{ id?: string; name: string; quantity: number; dimensions: string; notes: string; description: string }[]>([])
+  const [items, setItems] = useState<{ id?: string; name: string; quantity: number; dimensions: string; notes: string; description: string; image?: string }[]>([])
+  const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
+  const fileInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [teamMembers, setTeamMembers] = useState<{ userId: string; role: string }[]>([])
   const [error, setError] = useState("")
   const [loaded, setLoaded] = useState(false)
@@ -68,6 +70,7 @@ export default function EditWorkOrderPage() {
           dimensions: i.dimensions || "",
           notes: i.notes || "",
           description: i.description || "",
+          image: i.image || "",
         })))
       } else if (wo.items) {
         setItems(wo.items)
@@ -95,7 +98,26 @@ export default function EditWorkOrderPage() {
   }
 
   const addItem = () => {
-    setItems([...items, { name: "", quantity: 1, dimensions: "", notes: "", description: "" }])
+    setItems([...items, { name: "", quantity: 1, dimensions: "", notes: "", description: "", image: "" }])
+  }
+
+  const handleItemImageUpload = async (index: number, file: File) => {
+    setUploadingIndex(index)
+    try {
+      const formData = new FormData()
+      formData.append("file", file)
+      const res = await api.upload<{ url: string }>("/upload", formData)
+      const uploadedUrl = res.url
+      if (uploadedUrl) {
+        const updated = [...items]
+        updated[index].image = uploadedUrl
+        setItems(updated)
+      }
+    } catch {
+      toast.error("Failed to upload image")
+    } finally {
+      setUploadingIndex(null)
+    }
   }
 
   const updateItem = (index: number, key: string, value: string | number) => {
@@ -244,6 +266,14 @@ export default function EditWorkOrderPage() {
                     <span className="text-xs font-bold text-gray-500 bg-gray-200 px-2 py-0.5 rounded">Item #{i + 1}</span>
                     <Input value={item.name} onChange={(e) => updateItem(i, "name", e.target.value)} placeholder="Item name" className="flex-1" />
                   </div>
+                  {(item.image) && (
+                    <div className="flex items-center gap-2">
+                      <img src={item.image} alt={item.name} className="h-12 w-16 object-cover rounded border border-gray-200" />
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { const updated = [...items]; updated[i].image = ""; setItems(updated) }}>
+                        <X className="h-3 w-3 text-red-400" />
+                      </Button>
+                    </div>
+                  )}
                   <Textarea
                     value={item.description || ""}
                     onChange={(e) => updateItem(i, "description", e.target.value)}
@@ -253,6 +283,16 @@ export default function EditWorkOrderPage() {
                   <div className="flex gap-2">
                     <Input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(i, "quantity", parseInt(e.target.value) || 1)} placeholder="Qty" className="w-20" />
                     <Input value={item.dimensions} onChange={(e) => updateItem(i, "dimensions", e.target.value)} placeholder="Dimensions" className="flex-1" />
+                    <input
+                      ref={(el) => { fileInputRefs.current[i] = el }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) handleItemImageUpload(i, f) }}
+                    />
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRefs.current[i]?.click()} disabled={uploadingIndex === i}>
+                      {uploadingIndex === i ? <Upload className="h-3 w-3 animate-pulse" /> : <ImageIcon className="h-3 w-3" />}
+                    </Button>
                   </div>
                 </div>
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeItem(i)}>
