@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/db"
-import { requireAuth } from "@/lib/auth"
 
-export async function POST(request: NextRequest) {
+export async function GET() {
   try {
-    const { payload: user, error } = requireAuth(request)
-    if (error) return error
-
     const workOrders = await prisma.workOrder.findMany({
       select: {
         id: true,
