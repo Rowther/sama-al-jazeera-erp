@@ -44,7 +44,7 @@ export function InstallmentPayments({ workOrderId, installments, advanceReceived
     onError: (err: any) => toast.error(err.message),
   })
 
-  const totalPaid = installments.reduce((s: number, i: any) => s + i.amount, 0) + advanceReceived
+  const totalPaid = advanceReceived || 0
   const totalPrice = finalPrice || 0
 
   return (
