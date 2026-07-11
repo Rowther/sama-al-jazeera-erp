@@ -94,6 +94,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         "finalPrice", "remainingAmount",
         "productionManagerBudget", "productionManagerBudgetApproved",
         "productionManagerBudgetApprovedById",
+        "companyName", "companyContact", "estimateRef",
       ]
       const updateData: Record<string, unknown> = {}
       for (const key of allowedFields) {
@@ -244,6 +245,30 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
               message: `Work order ${oldOrder.workOrderId} has completed design and needs approval`,
               link: `/work-orders/${params.id}`,
             })),
+          })
+        }
+      }
+
+      // Auto-tick job card checklist based on status changes
+      const newStatus = data.status as string | undefined
+      if (newStatus && newStatus !== oldOrder.status) {
+        const jcUpdate: Record<string, boolean> = {}
+        if (newStatus === "DESIGN_COMPLETED") jcUpdate.designCompleted = true
+        if (newStatus === "DESIGN_APPROVED") jcUpdate.designApproved = true
+        if (newStatus === "READY_FOR_PRODUCTION") {
+          jcUpdate.materialSelectionDone = true
+          jcUpdate.measurementsVerified = true
+          if (oldOrder.estimatedBudget && oldOrder.estimatedBudget > 0) {
+            jcUpdate.budgetApproved = true
+          }
+        }
+        if (oldOrder.advanceReceived && oldOrder.advanceReceived > 0) {
+          jcUpdate.advancePaymentReceived = true
+        }
+        if (Object.keys(jcUpdate).length > 0) {
+          await tx.jobCard.updateMany({
+            where: { workOrderId: params.id },
+            data: jcUpdate,
           })
         }
       }

@@ -10,6 +10,7 @@ export const WORK_ORDER_STATUSES = [
   { value: 'PRODUCTION_STARTED', label: 'Production Started', color: 'bg-orange-100 text-orange-700' },
   { value: 'PRODUCTION_COMPLETED', label: 'Production Completed', color: 'bg-lime-100 text-lime-700' },
   { value: 'DELIVERED', label: 'Delivered', color: 'bg-green-100 text-green-700' },
+  { value: 'COMPLETED', label: 'Completed', color: 'bg-emerald-100 text-emerald-700' },
   { value: 'CLOSED', label: 'Closed', color: 'bg-gray-100 text-gray-700' },
   { value: 'CANCELLED', label: 'Cancelled', color: 'bg-red-100 text-red-700' },
   { value: 'WORK_ORDER_CREATED', label: 'Work Order Created', color: 'bg-blue-100 text-blue-700' },

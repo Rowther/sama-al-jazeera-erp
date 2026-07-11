@@ -14,7 +14,7 @@ import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
 import { useParams, useRouter } from "next/navigation"
 import { useAuthStore } from "@/stores/authStore"
 import { toast } from "sonner"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import {
   ArrowLeft, FileText, Package, Users, Clock, CheckCircle2, XCircle,
   Printer, Download, UserCheck, Building2, Ruler, Paintbrush, Wrench,
@@ -162,6 +162,39 @@ export default function EnhancedJobCardPage() {
 
   const completedChecklist = CHECKLIST_ITEMS.filter(i => jc[i.key]).length
   const approvedCount = APPROVAL_SECTIONS.filter(s => jc[`${s.key}Approved`]).length
+
+  // Auto-tick pre-production checklist on mount based on work order status
+  const autoTickRan = useRef(false)
+  useEffect(() => {
+    if (!wo || !jc || autoTickRan.current) return
+    autoTickRan.current = true
+
+    const updates: Record<string, boolean> = {}
+    const s = wo.status
+
+    if (["DESIGN_COMPLETED","DESIGN_APPROVED","READY_FOR_PRODUCTION","PRODUCTION_STARTED","IN_PRODUCTION","PRODUCTION_COMPLETED","DELIVERED","COMPLETED","CLOSED"].includes(s) && !jc.designCompleted) {
+      updates.designCompleted = true
+    }
+    if (["DESIGN_APPROVED","READY_FOR_PRODUCTION","PRODUCTION_STARTED","IN_PRODUCTION","PRODUCTION_COMPLETED","DELIVERED","COMPLETED","CLOSED"].includes(s) && !jc.designApproved) {
+      updates.designApproved = true
+    }
+    if (["READY_FOR_PRODUCTION","PRODUCTION_STARTED","IN_PRODUCTION","PRODUCTION_COMPLETED","DELIVERED","COMPLETED","CLOSED"].includes(s) && !jc.materialSelectionDone) {
+      updates.materialSelectionDone = true
+    }
+    if (["READY_FOR_PRODUCTION","PRODUCTION_STARTED","IN_PRODUCTION","PRODUCTION_COMPLETED","DELIVERED","COMPLETED","CLOSED"].includes(s) && !jc.measurementsVerified) {
+      updates.measurementsVerified = true
+    }
+    if (["READY_FOR_PRODUCTION","PRODUCTION_STARTED","IN_PRODUCTION","PRODUCTION_COMPLETED","DELIVERED","COMPLETED","CLOSED"].includes(s) && !jc.budgetApproved && wo.estimatedBudget && wo.estimatedBudget > 0) {
+      updates.budgetApproved = true
+    }
+    if (!jc.advancePaymentReceived && wo.advanceReceived && wo.advanceReceived > 0) {
+      updates.advancePaymentReceived = true
+    }
+
+    if (Object.keys(updates).length > 0) {
+      jobCardMutation.mutate(updates)
+    }
+  }, [wo, jc])
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">

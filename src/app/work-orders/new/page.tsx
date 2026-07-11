@@ -2,7 +2,8 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, keepPreviousData } from "@tanstack/react-query"
+import { useDebounce } from "@/hooks"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Modal } from "@/components/ui/modal"
-import { ArrowLeft, X, Plus, Upload, Image as ImageIcon, Loader2, DollarSign } from "lucide-react"
+import { ArrowLeft, X, Plus, Upload, Image as ImageIcon, Loader2, DollarSign, Search, ChevronDown } from "lucide-react"
 import { WORK_ORDER_STATUSES, PRIORITIES } from "@/lib/constants"
 import { useAuthStore } from "@/stores/authStore"
 
@@ -31,6 +32,7 @@ export default function NewWorkOrderPage() {
   const { user } = useAuthStore()
   const [form, setForm] = useState({
     customerName: "", customerPhone: "", customerLocation: "",
+    companyName: "", companyContact: "", estimateRef: "",
     projectType: "", furnitureType: "", description: "",
     priority: "MEDIUM", dueDate: "", dimensions: "",
     notes: "", estimatedBudget: "", advanceReceived: "0", paymentTerms: "",
@@ -41,6 +43,26 @@ export default function NewWorkOrderPage() {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
   const [showPMBudget, setShowPMBudget] = useState(false)
   const [pmBudget, setPmBudget] = useState("")
+
+  const [customerSearch, setCustomerSearch] = useState("")
+  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
+  const [customerSelected, setCustomerSelected] = useState(false)
+  const debouncedCustomerSearch = useDebounce(customerSearch, 300)
+  const { data: customerSearchData, isFetching: customerSearching } = useQuery({
+    queryKey: ["customer-search", debouncedCustomerSearch],
+    queryFn: () => api.get<any>(`/customers?search=${encodeURIComponent(debouncedCustomerSearch)}&limit=10`),
+    staleTime: 0,
+    enabled: debouncedCustomerSearch.length > 0,
+    placeholderData: keepPreviousData,
+  })
+  const customerResults = customerSearchData?.customers || []
+
+  const selectCustomer = (c: any) => {
+    setForm({ ...form, customerName: c.name, customerPhone: c.phone, customerLocation: c.location || "" })
+    setCustomerSearch(c.name)
+    setCustomerSelected(true)
+    setShowCustomerDropdown(false)
+  }
 
   const designerRef = useRef<HTMLDivElement>(null)
   const isOwnerOrManager = user?.role === "OWNER" || user?.role === "MANAGER"
@@ -130,6 +152,49 @@ export default function NewWorkOrderPage() {
             <CardTitle>Customer Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2 relative">
+              <label className="text-sm font-medium text-gray-700">Search Existing Customer</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  value={customerSearch}
+                  onChange={(e) => { setCustomerSearch(e.target.value); setCustomerSelected(false); setShowCustomerDropdown(true) }}
+                  onFocus={() => setShowCustomerDropdown(true)}
+                  placeholder="Type customer name or phone..."
+                  className="pl-9"
+                />
+                {customerSearch && showCustomerDropdown && (
+                  <>
+                    {customerSearching && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
+                        Searching...
+                      </div>
+                    )}
+                    {!customerSearching && customerResults.length > 0 && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {customerResults.map((c: any) => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2.5 hover:bg-gray-50 text-sm border-b border-gray-50 last:border-0"
+                            onClick={() => selectCustomer(c)}
+                          >
+                            <span className="font-medium text-gray-900">{c.name}</span>
+                            <span className="text-gray-400 ml-2">{c.phone}</span>
+                            {c.location && <span className="text-gray-400 ml-2">— {c.location}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {!customerSearching && debouncedCustomerSearch && customerResults.length === 0 && (
+                      <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-sm text-gray-400">
+                        No matching customers. Fill the fields below to create a new one.
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Customer Name *</label>
@@ -143,6 +208,20 @@ export default function NewWorkOrderPage() {
             <div className="space-y-2">
               <label className="text-sm font-medium text-gray-700">Location</label>
               <Input value={form.customerLocation} onChange={(e) => update("customerLocation", e.target.value)} placeholder="Enter location" />
+            </div>
+            <div className="border-t border-gray-100 pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Company Name</label>
+                <Input value={form.companyName} onChange={(e) => update("companyName", e.target.value)} placeholder="Enter company name" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Company Contact</label>
+                <Input value={form.companyContact} onChange={(e) => update("companyContact", e.target.value)} placeholder="Enter company contact" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Estimate Ref No.</label>
+                <Input value={form.estimateRef} onChange={(e) => update("estimateRef", e.target.value)} placeholder="Enter estimate reference" />
+              </div>
             </div>
           </CardContent>
         </Card>

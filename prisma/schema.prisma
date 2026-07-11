@@ -31,6 +31,7 @@ enum WorkOrderStatus {
   PRODUCTION_STARTED
   PRODUCTION_COMPLETED
   DELIVERED
+  COMPLETED
   CLOSED
   CANCELLED
 
@@ -405,6 +406,9 @@ model WorkOrder {
   dueDate         DateTime?
   dimensions      String?
   items           Json         @default("[]")
+  companyName     String?
+  companyContact  String?
+  estimateRef     String?
   notes           String?
   estimatedBudget Float?
   productionManagerBudget Float?
