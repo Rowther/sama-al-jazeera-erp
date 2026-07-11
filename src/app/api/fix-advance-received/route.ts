@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/auth"
 
 export async function POST(request: NextRequest) {
   try {
-    const { payload: user, error } = requireAuth(request, ["OWNER"])
+    const { payload: user, error } = requireAuth(request)
     if (error) return error
 
     const workOrders = await prisma.workOrder.findMany({
