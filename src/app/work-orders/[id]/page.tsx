@@ -27,6 +27,7 @@ import { ProductionTracking } from "@/components/work-orders/production-tracking
 import { DigitalSignaturePanel } from "@/components/work-orders/digital-signature"
 
 import { Modal } from "@/components/ui/modal"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { ProductionStages } from "@/components/work-orders/production-stages"
 import { LaborCostTracking } from "@/components/work-orders/labor-cost-tracking"
 import { PurchaseApprovalPanel } from "@/components/work-orders/purchase-approval-panel"
@@ -294,6 +295,8 @@ export default function WorkOrderDetailPage() {
     },
     onError: (err: any) => toast.error(err.message),
   })
+
+  const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 rounded-lg bg-[#4F8EF7] animate-pulse" /></div>
@@ -627,7 +630,7 @@ export default function WorkOrderDetailPage() {
                               }}>
                                 <Edit className="h-3 w-3 text-[#4F8EF7]" />
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this expense?")) deleteExpenseMutation.mutate(exp.id) }}>
+                              <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ message: "Delete this expense?", onConfirm: () => deleteExpenseMutation.mutate(exp.id) })}>
                                 <X className="h-3 w-3 text-red-400" />
                               </Button>
                             </div>
@@ -885,7 +888,7 @@ export default function WorkOrderDetailPage() {
                               <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemName(item.name); setEditItemQty(item.quantity) }}>
                                 <Edit className="h-3 w-3" />
                               </Button>
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { if (confirm("Remove this item?")) deleteItemMutation.mutate(item.id) }}>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setConfirmAction({ message: "Remove this item?", onConfirm: () => deleteItemMutation.mutate(item.id) })}>
                                 <X className="h-3 w-3 text-red-400" />
                               </Button>
                             </div>
@@ -1213,7 +1216,7 @@ export default function WorkOrderDetailPage() {
                                     </Button>
                                   )}
                                   {(isInventoryManager || user?.role === "OWNER" || user?.role === "MANAGER") && (
-                                    <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this material?")) materialActionMutation.mutate({ materialId: mat.id, action: "delete" }) }} title="Delete">
+                                    <Button size="sm" variant="ghost" onClick={() => setConfirmAction({ message: "Delete this material?", onConfirm: () => materialActionMutation.mutate({ materialId: mat.id, action: "delete" }) })} title="Delete">
                                       <X className="h-3 w-3 text-red-400" />
                                     </Button>
                                   )}
@@ -1363,6 +1366,16 @@ export default function WorkOrderDetailPage() {
           onClose={() => setSelectedItem(null)}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => { if (confirmAction) confirmAction.onConfirm(); setConfirmAction(null) }}
+        title="Confirm"
+        description={confirmAction?.message || ""}
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   )
 }

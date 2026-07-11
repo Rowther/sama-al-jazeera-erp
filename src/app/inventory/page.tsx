@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -24,6 +25,7 @@ export default function InventoryPage() {
   const router = useRouter()
   const { user } = useAuthStore()
   const [search, setSearch] = useState("")
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null)
   const debouncedSearch = useDebounce(search, 300)
   const [category, setCategory] = useState("")
   const [lowStockOnly, setLowStockOnly] = useState(false)
@@ -243,7 +245,7 @@ export default function InventoryPage() {
                         <button onClick={() => { setEditingItem(item); setEditForm({ name: item.name, category: item.category?.name || "", sku: item.sku, unit: item.unit, price: String(item.price), stockQuantity: String(item.stockQuantity), minStock: String(item.minStock), maxStock: String(item.maxStock), location: item.location || "" }) }} className="p-1 rounded hover:bg-gray-100 text-[#4F8EF7]" title="Edit">
                           <Edit className="h-3.5 w-3.5" />
                         </button>
-                        <button onClick={() => { if (confirm("Delete this inventory item?")) deleteMutation.mutate(item.id) }} className="p-1 rounded hover:bg-gray-100 text-red-400" title="Delete">
+                        <button onClick={() => setConfirmDelete({ id: item.id })} className="p-1 rounded hover:bg-gray-100 text-red-400" title="Delete">
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
                       </>
@@ -328,6 +330,16 @@ export default function InventoryPage() {
           </form>
         )}
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); setConfirmDelete(null) }}
+        title="Delete Inventory Item"
+        description="Delete this inventory item?"
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   )
 }

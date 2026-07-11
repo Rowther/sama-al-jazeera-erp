@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -28,6 +29,7 @@ export default function EmployeesPage() {
   const { user } = useAuthStore()
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState<any>({})
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null)
   const [editEmployee, setEditEmployee] = useState<any>(null)
   const [editForm, setEditForm] = useState<any>({})
   const queryClient = useQueryClient()
@@ -258,7 +260,7 @@ export default function EmployeesPage() {
                             </Button>
                           )}
                           {user?.role === "OWNER" && emp.isEmployee && (
-                            <Button size="sm" variant="ghost" onClick={() => { if (confirm("Delete this employee? This will also delete their user account.")) deleteMutation.mutate(emp.id) }}>
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete({ id: emp.id })}>
                               <Trash2 className="h-3.5 w-3.5 text-red-400" />
                             </Button>
                           )}
@@ -337,6 +339,16 @@ export default function EmployeesPage() {
           </div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); setConfirmDelete(null) }}
+        title="Delete Employee"
+        description="Delete this employee? This will also delete their user account."
+        confirmLabel="Delete"
+        variant="danger"
+      />
     </div>
   )
 }
