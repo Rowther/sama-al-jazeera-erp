@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
-import { useMutation, useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,6 +21,7 @@ export default function EditWorkOrderPage() {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
   const fileInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const [teamMembers, setTeamMembers] = useState<{ userId: string; role: string }[]>([])
+  const queryClient = useQueryClient()
   const [error, setError] = useState("")
   const [loaded, setLoaded] = useState(false)
 
@@ -132,7 +133,9 @@ export default function EditWorkOrderPage() {
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.patch(`/work-orders/${params.id}`, { ...data, items, teamMembers }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+      await queryClient.invalidateQueries({ queryKey: ["work-orders"] })
       toast.success("Work order updated successfully")
       router.push(`/work-orders/${params.id}`)
     },

@@ -296,6 +296,17 @@ export default function WorkOrderDetailPage() {
     onError: (err: any) => toast.error(err.message),
   })
 
+  const deleteItemImageMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      await api.patch(`/work-orders/${params.id}/items`, { itemId, image: null })
+    },
+    onSuccess: () => {
+      toast.success("Image removed")
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
   const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null)
 
   if (isLoading) {
@@ -935,6 +946,19 @@ export default function WorkOrderDetailPage() {
                           >
                             <Eye className="h-3 w-3" />
                           </Button>
+                          {canManage && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 h-6 w-6 p-0 bg-white/80 hover:bg-white"
+                              onClick={() => setConfirmAction({
+                                message: "Remove this image?",
+                                onConfirm: () => deleteItemImageMutation.mutate(item.id),
+                              })}
+                            >
+                              <X className="h-3 w-3 text-red-500" />
+                            </Button>
+                          )}
                         </div>
                       ))}
                     </div>

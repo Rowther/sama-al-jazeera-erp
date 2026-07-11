@@ -51,7 +51,11 @@ export async function POST(request: NextRequest) {
       })
       if (!workOrder) throw new Error("NOT_FOUND")
 
-      const totalPaid = workOrder.advanceReceived + parseFloat(amount)
+      const allInstallments = await tx.installment.findMany({
+        where: { workOrderId },
+        select: { amount: true },
+      })
+      const totalPaid = (workOrder.advanceReceived || 0) + allInstallments.reduce((s, i) => s + i.amount, 0)
       const remainingAmount = workOrder.finalPrice
         ? Math.max(0, workOrder.finalPrice - totalPaid)
         : null
@@ -59,7 +63,6 @@ export async function POST(request: NextRequest) {
       await tx.workOrder.update({
         where: { id: workOrderId },
         data: {
-          advanceReceived: totalPaid,
           remainingAmount,
         },
       })
