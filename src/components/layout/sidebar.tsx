@@ -99,7 +99,9 @@ export function Sidebar() {
                 )}
                 title={!sidebarOpen ? item.label : undefined}
               >
-                {iconMap[item.icon] || <LayoutDashboard className="h-5 w-5" />}
+                <span className={cn(!sidebarOpen && "lg:[&>svg]:h-6 lg:[&>svg]:w-6")}>
+                  {iconMap[item.icon] || <LayoutDashboard className="h-5 w-5" />}
+                </span>
                 <span className={cn(!sidebarOpen && "lg:hidden")}>{item.label}</span>
               </Link>
             )

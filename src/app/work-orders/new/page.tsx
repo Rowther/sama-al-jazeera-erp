@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useMutation, useQuery, keepPreviousData } from "@tanstack/react-query"
 import { useDebounce } from "@/hooks"
@@ -111,6 +111,12 @@ export default function NewWorkOrderPage() {
   }
 
   const grandTotal = items.reduce((sum, item) => sum + item.totalPrice, 0)
+
+  useEffect(() => {
+    if (grandTotal > 0) {
+      setForm(prev => ({ ...prev, estimatedBudget: String(grandTotal) }))
+    }
+  }, [grandTotal])
 
   const mutation = useMutation({
     mutationFn: (data: any) => api.post("/work-orders", { ...data, items }),
