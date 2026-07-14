@@ -44,10 +44,14 @@ function getPipelineStatus(workOrder: any): string {
 }
 
 function getStageStatus(workOrder: any, stageKey: string): Stage["status"] {
+  const status = workOrder?.status
   const pipelinePos = getPipelineStatus(workOrder)
   const currentIdx = PIPELINE_STAGES.findIndex(s => s.key === pipelinePos)
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === stageKey)
   const isDelayed = workOrder?.isDelayed
+
+  const terminalStatuses = ["DELIVERED", "COMPLETED", "CLOSED"]
+  if (terminalStatuses.includes(status)) return "completed"
 
   if (stageIdx < currentIdx) return "completed"
   if (stageIdx === currentIdx) {
