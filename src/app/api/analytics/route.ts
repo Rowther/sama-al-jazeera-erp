@@ -47,10 +47,10 @@ export async function GET(request: NextRequest) {
     const totalCosts = expensesAgg._sum.amount || 0
     const totalWO = statusCounts.reduce((s, g) => s + g._count.id, 0)
     const completed = statusCounts
-      .filter(g => g.status === "DELIVERED" || g.status === "CLOSED")
+      .filter(g => g.status === "DELIVERED" || g.status === "COMPLETED" || g.status === "CLOSED")
       .reduce((s, g) => s + g._count.id, 0)
     const inProduction = statusCounts
-      .filter(g => g.status === "PRODUCTION_STARTED")
+      .filter(g => g.status === "PRODUCTION_STARTED" || g.status === "IN_PRODUCTION" || g.status === "PRODUCTION_COMPLETED")
       .reduce((s, g) => s + g._count.id, 0)
     const cancelled = statusCounts
       .filter(g => g.status === "CANCELLED")

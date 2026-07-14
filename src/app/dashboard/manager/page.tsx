@@ -29,11 +29,11 @@ export default function ManagerDashboard() {
 
   const total = workOrders.length
   const active = workOrders.filter((w: any) =>
-    ["APPROVED", "DESIGN_ASSIGNED", "DESIGN_IN_PROGRESS", "DESIGN_COMPLETED"].includes(w.status)
+    ["APPROVED", "WORK_ORDER_CREATED", "DESIGN_ASSIGNED", "DESIGN_IN_PROGRESS", "DESIGN_COMPLETED", "DESIGN_SUBMITTED", "DESIGN_APPROVED", "MATERIAL_REVIEW", "READY_FOR_PRODUCTION", "IN_PRODUCTION", "PRODUCTION_STARTED", "READY_FOR_DELIVERY"].includes(w.status)
   ).length
-  const inProduction = workOrders.filter((w: any) => w.status === "PRODUCTION_STARTED" || w.status === "READY_FOR_PRODUCTION").length
+  const inProduction = workOrders.filter((w: any) => ["PRODUCTION_STARTED", "IN_PRODUCTION", "PRODUCTION_COMPLETED", "READY_FOR_PRODUCTION", "READY_FOR_DELIVERY"].includes(w.status)).length
   const delayed = workOrders.filter((w: any) => w.isDelayed).length
-  const completed = workOrders.filter((w: any) => w.status === "DELIVERED" || w.status === "CLOSED").length
+  const completed = workOrders.filter((w: any) => w.status === "DELIVERED" || w.status === "COMPLETED" || w.status === "CLOSED").length
 
   const pendingApproval = workOrders.filter((w: any) => w.status === "DESIGN_SUBMITTED" || w.status === "DESIGN_COMPLETED")
 

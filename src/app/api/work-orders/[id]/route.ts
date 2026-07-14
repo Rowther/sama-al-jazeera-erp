@@ -263,6 +263,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             jcUpdate.budgetApproved = true
           }
         }
+        if (newStatus === "PRODUCTION_COMPLETED" || newStatus === "DELIVERED" || newStatus === "COMPLETED") {
+          jcUpdate.productionCompleted = true
+        }
         if (oldOrder.advanceReceived && oldOrder.advanceReceived > 0) {
           jcUpdate.advancePaymentReceived = true
         }

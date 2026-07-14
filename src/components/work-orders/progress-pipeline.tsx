@@ -77,7 +77,7 @@ export function WorkOrderProgressBar({ workOrder }: { workOrder: any }) {
       return Math.round((completed / stages.length) * 100)
     }
     const statusMap: Record<string, number> = {
-      DELIVERED: 100, CLOSED: 100, PRODUCTION_COMPLETED: 90,
+      DELIVERED: 100, COMPLETED: 100, CLOSED: 100, PRODUCTION_COMPLETED: 90,
       READY_FOR_DELIVERY: 85, IN_PRODUCTION: 60, PRODUCTION_STARTED: 50,
       MATERIAL_REVIEW: 40, READY_FOR_PRODUCTION: 38, DESIGN_APPROVED: 35,
       DESIGN_COMPLETED: 30, DESIGN_SUBMITTED: 25, DESIGN_ASSIGNED: 20,
