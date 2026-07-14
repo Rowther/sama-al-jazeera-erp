@@ -35,7 +35,7 @@ function getPipelineStatus(workOrder: any): string {
   const isDelayed = workOrder?.isDelayed
   const stages: any[] = workOrder?.productionStages || []
 
-  if (status === "DELIVERED" || status === "CLOSED") return "DELIVERY"
+  if (status === "DELIVERED" || status === "COMPLETED" || status === "CLOSED") return "DELIVERY"
   if (status === "PRODUCTION_COMPLETED" || status === "READY_FOR_DELIVERY") return "QUALITY_CHECK"
   if (["IN_PRODUCTION", "PRODUCTION_STARTED"].includes(status) || stages.some((s: any) => s.status === "IN_PROGRESS" || s.status === "COMPLETED")) return "PRODUCTION"
   if (status === "MATERIAL_REVIEW" || status === "READY_FOR_PRODUCTION" || status === "DESIGN_APPROVED") return "PROCUREMENT"
