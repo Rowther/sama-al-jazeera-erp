@@ -35,7 +35,9 @@ function getPipelineStatus(workOrder: any): string {
   const isDelayed = workOrder?.isDelayed
   const stages: any[] = workOrder?.productionStages || []
 
-  if (status === "DELIVERED" || status === "COMPLETED" || status === "CLOSED") return "DELIVERY"
+  if (status === "CANCELLED") return "CANCELLED"
+  if (status === "CLOSED") return "DELIVERY"
+  if (status === "DELIVERED" || status === "COMPLETED") return "DELIVERY"
   if (status === "PRODUCTION_COMPLETED" || status === "READY_FOR_DELIVERY") return "QUALITY_CHECK"
   if (["IN_PRODUCTION", "PRODUCTION_STARTED"].includes(status) || stages.some((s: any) => s.status === "IN_PROGRESS" || s.status === "COMPLETED")) return "PRODUCTION"
   if (status === "MATERIAL_REVIEW" || status === "READY_FOR_PRODUCTION" || status === "DESIGN_APPROVED") return "PROCUREMENT"
@@ -50,8 +52,9 @@ function getStageStatus(workOrder: any, stageKey: string): Stage["status"] {
   const stageIdx = PIPELINE_STAGES.findIndex(s => s.key === stageKey)
   const isDelayed = workOrder?.isDelayed
 
-  const terminalStatuses = ["DELIVERED", "COMPLETED", "CLOSED"]
-  if (terminalStatuses.includes(status)) return "completed"
+  if (status === "CANCELLED") return "blocked"
+  if (status === "CLOSED") return "completed"
+  if (status === "COMPLETED" || status === "DELIVERED") return "completed"
 
   if (stageIdx < currentIdx) return "completed"
   if (stageIdx === currentIdx) {
@@ -81,7 +84,7 @@ export function WorkOrderProgressBar({ workOrder }: { workOrder: any }) {
       return Math.round((completed / stages.length) * 100)
     }
     const statusMap: Record<string, number> = {
-      DELIVERED: 100, COMPLETED: 100, CLOSED: 100, PRODUCTION_COMPLETED: 90,
+      DELIVERED: 100, COMPLETED: 100, CLOSED: 100, CANCELLED: 0, PRODUCTION_COMPLETED: 90,
       READY_FOR_DELIVERY: 85, IN_PRODUCTION: 60, PRODUCTION_STARTED: 50,
       MATERIAL_REVIEW: 40, READY_FOR_PRODUCTION: 38, DESIGN_APPROVED: 35,
       DESIGN_COMPLETED: 30, DESIGN_SUBMITTED: 25, DESIGN_ASSIGNED: 20,
