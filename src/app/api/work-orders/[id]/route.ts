@@ -194,6 +194,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             data: {
               name: item.name,
               quantity: item.quantity || 1,
+              unitPrice: item.unitPrice != null ? item.unitPrice : undefined,
+              totalPrice: item.totalPrice != null ? item.totalPrice : undefined,
               description: item.description || null,
               dimensions: item.dimensions || null,
               notes: item.notes || null,
@@ -209,6 +211,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
               workOrderId: params.id,
               name: item.name,
               quantity: item.quantity || 1,
+              unitPrice: item.unitPrice || null,
+              totalPrice: item.totalPrice || null,
               description: item.description || null,
               dimensions: item.dimensions || null,
               notes: item.notes || null,
