@@ -92,7 +92,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         "projectType", "furnitureType", "description", "priority", "dimensions", "items",
         "notes", "paymentTerms", "status", "assignedToId",
         "finalPrice", "remainingAmount",
-        "productionManagerBudget", "productionManagerBudgetApproved",
+        "productionManagerBudgetApproved",
         "productionManagerBudgetApprovedById",
         "companyName", "companyContact", "estimateRef",
       ]
@@ -113,6 +113,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         updateData.totalCost = parseFloat(data.totalCost)
       if (data.productionManagerBudget !== undefined && data.productionManagerBudget !== "")
         updateData.productionManagerBudget = parseFloat(data.productionManagerBudget)
+      else if (data.productionManagerBudget === "")
+        updateData.productionManagerBudget = null
       if (data.productionManagerBudgetApprovedById !== undefined)
         updateData.productionManagerBudgetApprovedById = data.productionManagerBudgetApprovedById
       if (data.productionManagerBudgetApproved === true)
