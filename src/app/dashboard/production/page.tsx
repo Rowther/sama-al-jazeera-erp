@@ -33,24 +33,11 @@ export default function ProductionDashboard() {
     refetchInterval: 30000,
   })
 
-  const { data: analytics } = useQuery({
-    queryKey: ["analytics"],
-    queryFn: () => api.get<any>("/analytics"),
-  })
-
-  const { data: cashFlowData } = useQuery({
-    queryKey: ["cash-flow"],
-    queryFn: () => api.get<any>("/cash-flow?months=12"),
-  })
-
   const { data: usersData } = useQuery({
     queryKey: ["users", "labour"],
     queryFn: () => api.get<any>("/users"),
   })
   const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR")
-  const kpis = analytics?.kpis || {}
-  const cashFlow = cashFlowData || { summary: {} }
-  const cashBurnRate = cashFlow.summary?.burnRate || 0
 
   const productionAction = useMutation({
     mutationFn: ({ id, action }: { id: string; action: string }) =>
@@ -123,47 +110,6 @@ export default function ProductionDashboard() {
           <CheckCircle2 className="h-5 w-5 text-[#36B37E] mx-auto mb-1" />
           <p className="text-2xl font-bold text-gray-900">{stats.totalUpcoming || 0}</p>
           <p className="text-xs text-gray-500">Upcoming Deliveries</p>
-        </CardContent></Card>
-      </div>
-
-      {/* Financial Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card><CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.totalRevenue || 0)}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-green-50 text-[#36B37E]"><BarChart3 className="h-5 w-5" /></div>
-          </div>
-        </CardContent></Card>
-        <Card><CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Total Costs</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.totalCosts || 0)}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-red-50 text-[#F45D5D]"><Clock className="h-5 w-5" /></div>
-          </div>
-        </CardContent></Card>
-        <Card><CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Net Profit</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(kpis.netProfit || 0)}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-[#EEF4FF] text-[#4F8EF7]"><BarChart3 className="h-5 w-5" /></div>
-          </div>
-        </CardContent></Card>
-        <Card><CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-gray-500">Cash Burn Rate</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(cashBurnRate)}</p>
-              <span className="inline-flex items-center gap-1 text-xs text-gray-400 mt-1">Monthly</span>
-            </div>
-            <div className="p-3 rounded-xl bg-purple-50 text-purple-600"><BarChart3 className="h-5 w-5" /></div>
-          </div>
         </CardContent></Card>
       </div>
 

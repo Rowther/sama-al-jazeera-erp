@@ -475,17 +475,15 @@ export default function WorkOrderDetailPage() {
         </Card>
       )}
 
-      {/* Financial Overview */}
-      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT" || user?.role === "PRODUCTION_MANAGER") && (
+      {/* Financial Overview — OWNER / MANAGER / ACCOUNTANT only */}
+      {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
         <Card className="border-t-4 border-t-[#4F8EF7]">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span className="flex items-center gap-2"><DollarSign className="h-5 w-5 text-[#4F8EF7]" /> Financial Overview</span>
-              {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (
-                <Button size="sm" variant="outline" onClick={() => setShowPaymentModal(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Record Payment
-                </Button>
-              )}
+              <Button size="sm" variant="outline" onClick={() => setShowPaymentModal(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Record Payment
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -516,7 +514,7 @@ export default function WorkOrderDetailPage() {
 
             {/* Budget Breakdown */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && wo.estimatedBudget && (
+              {wo.estimatedBudget && (
                 <div className="p-4 rounded-xl border border-gray-200 bg-white">
                   <p className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-3">Total Job Value</p>
                   <div className="space-y-2">
@@ -608,7 +606,7 @@ export default function WorkOrderDetailPage() {
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-sm font-medium text-gray-700">Expenses</p>
-                  {(["OWNER", "MANAGER", "PRODUCTION_MANAGER", "INVENTORY_MANAGER"] as string[]).includes(user?.role || "") && (
+                  {(["OWNER", "MANAGER", "INVENTORY_MANAGER"] as string[]).includes(user?.role || "") && (
                     !showExpenseForm ? (
                       <Button size="sm" variant="outline" onClick={() => setShowExpenseForm(true)}>
                         <Plus className="h-4 w-4 mr-1" /> Add Expense
@@ -743,6 +741,46 @@ export default function WorkOrderDetailPage() {
               </div>
             </div>
           </Modal>
+        </Card>
+      )}
+
+      {/* Production Budget Only — PRODUCTION_MANAGER */}
+      {user?.role === "PRODUCTION_MANAGER" && (
+        <Card className="border-t-4 border-t-[#36B37E]">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-[#36B37E]" /> Production Budget
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ProductionManagerBudgetSection workOrder={wo} user={user} statusMutation={statusMutation} />
+            {wo.productionManagerBudget != null && (
+              <div className="mt-4 p-4 rounded-xl border border-gray-200 bg-white">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">PM Budget</span>
+                    <span className="text-sm font-bold text-gray-900">{formatCurrency(wo.productionManagerBudget)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Spent So Far</span>
+                    <span className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(totalExpenses)}</span>
+                  </div>
+                  <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Remaining</span>
+                    <span className={`text-sm font-bold ${(wo.productionManagerBudget - totalExpenses) >= 0 ? 'text-[#36B37E]' : 'text-[#F45D5D]'}`}>
+                      {formatCurrency(Math.max(0, wo.productionManagerBudget - totalExpenses))}
+                    </span>
+                  </div>
+                </div>
+                {wo.productionManagerBudget > 0 && (
+                  <div className="mt-3">
+                    <Progress value={Math.min((totalExpenses / wo.productionManagerBudget) * 100, 100)} variant={Number(budgetUsage) > 100 ? "danger" : Number(budgetUsage) > 80 ? "warning" : "default"} />
+                    <p className="text-xs text-gray-400 mt-1">{wo.productionManagerBudget > 0 ? Math.min(Math.round((totalExpenses / wo.productionManagerBudget) * 100), 100) : 0}% used</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
         </Card>
       )}
 
