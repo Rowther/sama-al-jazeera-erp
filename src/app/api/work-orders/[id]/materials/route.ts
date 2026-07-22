@@ -75,6 +75,49 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return { ...mat, computedStatus: status, computedAvailableQuantity: availableQty, computedMissingQuantity: missingQty, totalStockQuantity: totalAvailable, inventoryMatches: matchingItems.map(i => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit })) }
     })
 
+    const approvedMaterials = materials.filter(m => m.status === "APPROVED")
+    if (approvedMaterials.length > 0) {
+      const existingExpenses = await prisma.expense.findMany({
+        where: {
+          workOrderId: params.id,
+          category: "MATERIAL",
+        },
+        select: { description: true },
+      })
+      const existingDescriptions = new Set(existingExpenses.map(e => e.description))
+
+      for (const mat of approvedMaterials) {
+        const expectedDesc = `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`
+        if (existingDescriptions.has(expectedDesc)) continue
+
+        let expenseAmount = mat.estimatedCost || mat.actualCost || 0
+        if (mat.inventoryItemId && expenseAmount === 0) {
+          const invItem = allInventory.find(i => i.id === mat.inventoryItemId)
+          if (invItem && invItem.price > 0) {
+            expenseAmount = invItem.price * mat.requiredQuantity
+          }
+        }
+
+        await prisma.expense.create({
+          data: {
+            workOrderId: params.id,
+            category: "MATERIAL",
+            amount: expenseAmount,
+            description: expectedDesc,
+          },
+        })
+      }
+
+      const totalExpenses = await prisma.expense.aggregate({
+        where: { workOrderId: params.id },
+        _sum: { amount: true },
+      })
+      await prisma.workOrder.update({
+        where: { id: params.id },
+        data: { totalCost: totalExpenses._sum.amount || 0 },
+      })
+    }
+
     return NextResponse.json({ materials: enriched })
   } catch (error) {
     return NextResponse.json({ message: "Internal server error" }, { status: 500 })

@@ -343,7 +343,7 @@ export default function NewWorkOrderPage() {
                           type="number"
                           min={0}
                           step={0.01}
-                          value={item.unitPrice}
+                          value={item.unitPrice || ""}
                           onChange={(e) => updateItem(i, "unitPrice", parseFloat(e.target.value) || 0)}
                           placeholder="0.00"
                           className="w-28"
