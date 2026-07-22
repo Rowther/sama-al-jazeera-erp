@@ -1139,6 +1139,7 @@ export default function WorkOrderDetailPage() {
                     category: newMaterial.category,
                     requiredQuantity: newMaterial.requiredQuantity,
                     unit: newMaterial.unit,
+                    estimatedCost: newMaterial.estimatedCost,
                     supplierPreference: newMaterial.supplierPreference,
                     priority: newMaterial.priority,
                     notes: newMaterial.notes,

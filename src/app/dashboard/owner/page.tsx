@@ -585,7 +585,7 @@ export default function OwnerCommandCenter() {
               <p className="text-sm font-medium text-gray-700 mb-3">Highest Material Cost Work Orders</p>
               <div className="space-y-2">
                 {topExpensiveWOs.map((wo: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId}`)}>
+                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.id}`)}>
                     <div>
                       <p className="text-sm font-medium text-gray-900">{wo.workOrderId}{wo.customerName ? <span className="text-xs text-gray-500 ml-1">— {wo.customerName}</span> : ""}</p>
                       <p className={`text-xs ${wo.actualCost > wo.estimatedCost ? "text-[#F45D5D]" : "text-[#36B37E]"}`}>

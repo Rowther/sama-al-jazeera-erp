@@ -118,7 +118,12 @@ export default function WorkOrdersPage() {
                 {(user?.role === "OWNER" || user?.role === "MANAGER" || user?.role === "ACCOUNTANT") && (wo.totalCost > 0 || wo.estimatedBudget > 0) && (
                   <div className="text-right shrink-0">
                     {wo.totalCost > 0 && <p className="text-sm font-semibold text-gray-900">{formatCurrency(wo.totalCost)}</p>}
-                    {wo.estimatedBudget > 0 && <p className="text-xs text-gray-400">Budget: {formatCurrency(wo.estimatedBudget)}</p>}
+                    {wo.estimatedBudget > 0 && <p className="text-xs text-gray-400">Total Job Value: {formatCurrency(wo.estimatedBudget)}</p>}
+                  </div>
+                )}
+                {user?.role !== "OWNER" && user?.role !== "MANAGER" && user?.role !== "ACCOUNTANT" && wo.productionManagerBudget > 0 && (
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-gray-400">Production Budget: {formatCurrency(wo.productionManagerBudget)}</p>
                   </div>
                 )}
               </div>

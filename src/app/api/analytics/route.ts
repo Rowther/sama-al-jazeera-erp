@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     ])
 
     const incomeByWO = new Map(workOrderIncomes.map(p => [p.workOrderId, p._sum.amount || 0]))
-    const totalRevenue = incomePaymentsAgg._sum.amount || 0
+    const totalRevenue = recentWorkOrders.reduce((sum, wo) => sum + (wo.estimatedBudget || 0), 0)
     const totalCosts = expensesAgg._sum.amount || 0
     const totalWO = statusCounts.reduce((s, g) => s + g._count.id, 0)
     const completed = statusCounts
@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
         type: "delay" as const,
         severity: (w.delayDays > 14 ? "high" : w.delayDays > 7 ? "medium" : "low") as "high" | "medium" | "low",
         message: `Work Order ${w.workOrderId} is delayed by ${w.delayDays} days`,
+        id: w.id,
         workOrderId: w.workOrderId,
       })),
       ...recentWorkOrders
@@ -70,22 +71,28 @@ export async function GET(request: NextRequest) {
           type: "cost_overrun" as const,
           severity: ((wo.costOverrun / (wo.estimatedBudget || 1)) > 0.3 ? "high" : "medium") as "high" | "medium",
           message: `Work Order ${wo.workOrderId} has cost overrun of ${wo.costOverrun} AED`,
+          id: wo.id,
           workOrderId: wo.workOrderId,
         })),
     ]
 
     const profitByWO = recentWorkOrders
-      .filter(wo => (incomeByWO.get(wo.id) || 0) > 0 || wo.finalPrice || (wo.estimatedBudget && wo.estimatedBudget > 0))
-      .map(wo => ({
-        workOrderId: wo.workOrderId,
-        budget: wo.estimatedBudget || 0,
-        actual: wo.totalCost,
-        revenue: incomeByWO.get(wo.id) || 0,
-        cost: wo.totalCost,
-        profit: (incomeByWO.get(wo.id) || 0) - wo.totalCost,
-        margin: wo.profitMargin || 0,
-        status: wo.status,
-      }))
+      .filter(wo => wo.estimatedBudget && wo.estimatedBudget > 0)
+      .map(wo => {
+        const revenue = wo.estimatedBudget || 0
+        const cost = wo.totalCost || 0
+        return {
+          id: wo.id,
+          workOrderId: wo.workOrderId,
+          budget: revenue,
+          actual: cost,
+          revenue: revenue,
+          cost: cost,
+          profit: revenue - cost,
+          margin: revenue > 0 ? ((revenue - cost) / revenue) * 100 : 0,
+          status: wo.status,
+        }
+      })
 
     const cashFlow = {
       inflow: totalRevenue,

@@ -40,9 +40,9 @@ export async function POST(request: NextRequest) {
   const noLoginRoles = ["LABOUR", "DRIVER"]
   const isNoLogin = noLoginRoles.includes(data.role)
 
-  // For labour/driver, auto-generate credentials since they don't need login
-  const email = data.email || (isNoLogin ? `${data.role.toLowerCase()}-${Date.now()}@internal.samaaljazeera.com` : undefined)
-  const password = data.password || (isNoLogin ? await bcrypt.hash(Math.random().toString(36), 12) : "$2a$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5Gz0nZ0yh0m0yf0z0x0y0z0W")
+  // Auto-generate email if not provided
+  const email = data.email || `${data.name.toLowerCase().replace(/\s+/g, ".")}-${Date.now()}@internal.samaaljazeera.com`
+  const password = data.password || "$2a$12$LJ3m4ys3Lk0TSwHnbfOMiOXPm1Qlq5Gz0nZ0yh0m0yf0z0x0y0z0W"
 
   const appUser = await prisma.user.create({
     data: {

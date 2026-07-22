@@ -290,7 +290,7 @@ export default function AccountantDashboard() {
           <CardContent>
             <div className="space-y-3">
               {profitData.slice(0, 8).map((wo: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId}`)}>
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.id}`)}>
                   <div>
                     <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
                     <p className="text-xs text-gray-400">Revenue: {formatCurrency(wo.revenue)} | Cost: {formatCurrency(wo.cost)}</p>

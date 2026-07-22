@@ -30,6 +30,7 @@ export default function EmployeesPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState<any>({})
   const [confirmDelete, setConfirmDelete] = useState<{ id: string } | null>(null)
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<{ id: string } | null>(null)
   const [editEmployee, setEditEmployee] = useState<any>(null)
   const [editForm, setEditForm] = useState<any>({})
   const queryClient = useQueryClient()
@@ -59,6 +60,15 @@ export default function EmployeesPage() {
     mutationFn: (id: string) => api.delete(`/employees/${id}`),
     onSuccess: () => {
       toast.success("Employee deleted")
+      queryClient.invalidateQueries({ queryKey: ["employees"] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const deleteUserMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/users?id=${id}`),
+    onSuccess: () => {
+      toast.success("User deleted")
       queryClient.invalidateQueries({ queryKey: ["employees"] })
     },
     onError: (err: any) => toast.error(err.message),
@@ -140,8 +150,8 @@ export default function EmployeesPage() {
                   <Input required onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Enter name" />
                 </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Email {form.role !== "LABOUR" && form.role !== "DRIVER" ? "*" : ""}</label>
-                    <Input type="email" required={form.role !== "LABOUR" && form.role !== "DRIVER"} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={form.role === "LABOUR" || form.role === "DRIVER" ? "Auto-generated" : "Enter email"} />
+                    <label className="text-sm font-medium text-gray-700">Email</label>
+                    <Input type="email" onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="Auto-generated if left empty" />
                   </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Role *</label>
@@ -264,6 +274,11 @@ export default function EmployeesPage() {
                               <Trash2 className="h-3.5 w-3.5 text-red-400" />
                             </Button>
                           )}
+                          {user?.role === "OWNER" && !emp.isEmployee && emp.user?.id && (
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDeleteUser({ id: emp.user.id })}>
+                              <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -346,6 +361,16 @@ export default function EmployeesPage() {
         onConfirm={() => { if (confirmDelete) deleteMutation.mutate(confirmDelete.id); setConfirmDelete(null) }}
         title="Delete Employee"
         description="Delete this employee? This will also delete their user account."
+        confirmLabel="Delete"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        open={!!confirmDeleteUser}
+        onClose={() => setConfirmDeleteUser(null)}
+        onConfirm={() => { if (confirmDeleteUser) deleteUserMutation.mutate(confirmDeleteUser.id); setConfirmDeleteUser(null) }}
+        title="Delete User"
+        description="Delete this user? This action cannot be undone."
         confirmLabel="Delete"
         variant="danger"
       />

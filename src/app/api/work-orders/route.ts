@@ -104,6 +104,7 @@ export async function POST(request: NextRequest) {
           paymentTerms: data.paymentTerms,
           status: data.status || "DRAFT",
           assignedToId: data.assignedToId || null,
+          productionManagerBudget: data.productionManagerBudget ? parseFloat(data.productionManagerBudget) : null,
           createdById: user.userId,
         },
         include: {
