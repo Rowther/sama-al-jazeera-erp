@@ -152,9 +152,9 @@ export default function ProductionDashboard() {
                     <span>{wo.customer?.name}</span>
                     <span>Due: {wo.dueDate ? formatDate(wo.dueDate) : "-"}</span>
                   </div>
-                  {(wo.estimatedBudget || wo.totalCost > 0) && (
+                  {(wo.productionManagerBudget != null || wo.totalCost > 0) && (
                     <div className="flex items-center justify-between text-xs mt-1.5 pt-1.5 border-t border-gray-100">
-                      <span className="text-gray-500">Budget: {formatCurrency(wo.estimatedBudget || 0)}</span>
+                      <span className="text-gray-500">Budget: {formatCurrency(wo.productionManagerBudget || 0)}</span>
                       <span className={wo.costOverrun > 0 ? "text-[#F45D5D] font-semibold" : "text-[#36B37E]"}>
                         Cost: {formatCurrency(wo.totalCost || 0)}
                         {wo.costOverrun > 0 && <span className="ml-1">(Over by {formatCurrency(wo.costOverrun)})</span>}
@@ -236,9 +236,9 @@ export default function ProductionDashboard() {
                       </Button>
                     </div>
                   </div>
-                  {(wo.estimatedBudget || wo.totalCost > 0) && (
+                  {(wo.productionManagerBudget != null || wo.totalCost > 0) && (
                     <div className="flex items-center gap-2 text-xs mt-1 ml-10">
-                      <span className="text-gray-400">Budget: {formatCurrency(wo.estimatedBudget || 0)}</span>
+                      <span className="text-gray-400">Budget: {formatCurrency(wo.productionManagerBudget || 0)}</span>
                       <span className={wo.costOverrun > 0 ? "text-[#F45D5D]" : "text-[#36B37E]"}>
                         | Cost: {formatCurrency(wo.totalCost || 0)}
                       </span>
