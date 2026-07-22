@@ -120,6 +120,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (data.productionManagerBudgetApproved === true)
         updateData.productionManagerBudgetApprovedAt = new Date()
 
+      if (data.status === "DELIVERED" || data.status === "COMPLETED" || data.status === "CLOSED") {
+        updateData.completedAt = new Date()
+      }
+
       if (data.customerName && oldOrder.customerId) {
         await tx.customer.update({
           where: { id: oldOrder.customerId },
@@ -309,7 +313,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     })
 
     return NextResponse.json({ workOrder: result })
-  } catch (error) {
+    } catch (error) {
     if (error instanceof Error) {
       if (error.message === "NOT_FOUND") {
         return NextResponse.json({ message: "Not found" }, { status: 404 })
@@ -318,7 +322,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return NextResponse.json({ message: error.message }, { status: 400 })
       }
     }
-    console.error("Work order update error:", error)
-    return NextResponse.json({ message: "Internal server error" }, { status: 500 })
+    console.error("Work order update error:", error instanceof Error ? error.message : error)
+    return NextResponse.json({ message: error instanceof Error ? error.message : "Internal server error" }, { status: 500 })
   }
 }
