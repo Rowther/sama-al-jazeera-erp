@@ -288,14 +288,7 @@ export default function EditWorkOrderPage() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Dimensions</label>
-              <Input value={form.dimensions} onChange={(e) => update("dimensions", e.target.value)} placeholder="e.g., 10x12 ft" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Description</label>
-              <Textarea value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Describe the work order..." rows={3} />
-            </div>
+
           </CardContent>
         </Card>
 
@@ -332,12 +325,7 @@ export default function EditWorkOrderPage() {
                       </Button>
                     </div>
 
-                    <Textarea
-                      value={item.description}
-                      onChange={(e) => updateItem(i, "description", e.target.value)}
-                      placeholder="Item description..."
-                      rows={2}
-                    />
+
 
                     <div className="flex gap-2 flex-wrap">
                       <div className="space-y-1">
@@ -368,15 +356,7 @@ export default function EditWorkOrderPage() {
                           {item.totalPrice.toFixed(2)}
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <label className="text-xs text-gray-500">Dimensions</label>
-                        <Input
-                          value={item.dimensions}
-                          onChange={(e) => updateItem(i, "dimensions", e.target.value)}
-                          placeholder="e.g., 10x12 ft"
-                          className="w-28"
-                        />
-                      </div>
+
                     </div>
 
                     <div className="flex items-center gap-3">
