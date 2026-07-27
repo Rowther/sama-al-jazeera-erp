@@ -1250,7 +1250,7 @@ export default function WorkOrderDetailPage() {
                               <td className="py-2 px-2 text-sm text-gray-700">{formatCurrency((mat.estimatedCost || 0) * mat.requiredQuantity)}</td>
                               {(isInventoryManager || canManage) && <td className="py-2 px-2 font-medium text-[#4F8EF7]">{mat.totalStockQuantity ?? "—"}</td>}
                               <td className="py-2 px-2">{mat.computedAvailableQuantity ?? mat.availableQuantity ?? 0}</td>
-                              <td className="py-2 px-2 text-[#F45D5D]">{mat.computedMissingQuantity ?? mat.missingQuantity ?? 0}</td>
+                              <td className="py-2 px-2 text-[#F45D5D]">{(mat.totalStockQuantity ?? 0) - (mat.computedAvailableQuantity ?? mat.availableQuantity ?? 0)}</td>
                               <td className="py-2 px-2">
                                 <span className={`text-xs px-2 py-0.5 rounded-full ${
                                   mat.status === "AVAILABLE" ? "bg-green-100 text-green-700" :
