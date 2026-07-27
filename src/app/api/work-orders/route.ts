@@ -66,6 +66,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Project type is required" }, { status: 400 })
     }
 
+    if (!data.estimateRef || !data.estimateRef.trim()) {
+      return NextResponse.json({ message: "Estimate Ref No. is required" }, { status: 400 })
+    }
+
+    if (!data.estimatedBudget || Number(data.estimatedBudget) <= 0) {
+      return NextResponse.json({ message: "Total Job Value is required" }, { status: 400 })
+    }
+
+    if (user.role === "OWNER" || user.role === "MANAGER") {
+      if (!data.productionManagerBudget || Number(data.productionManagerBudget) <= 0) {
+        return NextResponse.json({ message: "Production Manager Budget is required" }, { status: 400 })
+      }
+    }
+
     const count = await prisma.workOrder.count()
     const workOrderId = `WO-${String(count + 1).padStart(4, "0")}`
 

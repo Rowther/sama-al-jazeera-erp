@@ -65,7 +65,7 @@ export default function NewWorkOrderPage() {
 
   const designerRef = useRef<HTMLDivElement>(null)
   const isOwnerOrManager = user?.role === "OWNER" || user?.role === "MANAGER"
-  const canSetPMBudget = user?.role === "OWNER" || user?.role === "PRODUCTION_MANAGER"
+  const canSetPMBudget = user?.role === "OWNER" || user?.role === "MANAGER"
 
   const { data: usersData } = useQuery({
     queryKey: ["users"],
@@ -132,6 +132,18 @@ export default function NewWorkOrderPage() {
     if (isOwnerOrManager && !form.assignedToId) {
       setError("Please assign a designer before creating the work order")
       designerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      return
+    }
+    if (!form.estimateRef.trim()) {
+      setError("Estimate Ref No. is required")
+      return
+    }
+    if (!form.estimatedBudget || Number(form.estimatedBudget) <= 0) {
+      setError("Total Job Value is required")
+      return
+    }
+    if (canSetPMBudget && (!form.productionManagerBudget || Number(form.productionManagerBudget) <= 0)) {
+      setError("Production Manager Budget is required")
       return
     }
     mutation.mutate(form)
@@ -224,8 +236,8 @@ export default function NewWorkOrderPage() {
                 <Input value={form.companyContact} onChange={(e) => update("companyContact", e.target.value)} placeholder="Enter company contact" />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Estimate Ref No.</label>
-                <Input value={form.estimateRef} onChange={(e) => update("estimateRef", e.target.value)} placeholder="Enter estimate reference" />
+                <label className="text-sm font-medium text-gray-700">Estimate Ref No. <span className="text-red-500">*</span></label>
+                <Input value={form.estimateRef} onChange={(e) => update("estimateRef", e.target.value)} placeholder="Enter estimate reference" required />
               </div>
             </div>
           </CardContent>
@@ -415,8 +427,8 @@ export default function NewWorkOrderPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Total Job Value</label>
-                <Input type="number" value={form.estimatedBudget} onChange={(e) => update("estimatedBudget", e.target.value)} placeholder="Enter total job value" />
+                <label className="text-sm font-medium text-gray-700">Total Job Value <span className="text-red-500">*</span></label>
+                <Input type="number" value={form.estimatedBudget} onChange={(e) => update("estimatedBudget", e.target.value)} placeholder="Enter total job value" required />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Advance Received</label>
@@ -433,13 +445,19 @@ export default function NewWorkOrderPage() {
             </div>
             {canSetPMBudget && (
               <div className="pt-2 border-t border-gray-100">
-                {!showPMBudget ? (
-                  <Button type="button" variant="outline" size="sm" onClick={() => setShowPMBudget(true)} disabled={!form.estimatedBudget}>
-                    <DollarSign className="h-4 w-4 mr-1" /> Set Production Manager Budget
-                  </Button>
+                {!showPMBudget && form.productionManagerBudget ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-700">Production Manager Budget <span className="text-red-500">*</span></label>
+                      <Button type="button" variant="ghost" size="sm" onClick={() => { setShowPMBudget(true); setPmBudget(form.productionManagerBudget) }}>Edit</Button>
+                    </div>
+                    <div className="p-3 rounded-xl bg-gray-50 border border-gray-200">
+                      <span className="text-sm font-semibold text-gray-900">{Number(form.productionManagerBudget).toLocaleString()}</span>
+                    </div>
+                  </div>
                 ) : (
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-gray-700">Production Manager Budget</label>
+                    <label className="text-sm font-medium text-gray-700">Production Manager Budget <span className="text-red-500">*</span></label>
                     <div className="flex gap-2">
                       <Input
                         type="number"
@@ -447,9 +465,9 @@ export default function NewWorkOrderPage() {
                         onChange={(e) => setPmBudget(e.target.value)}
                         placeholder="Enter PM budget"
                         className="flex-1"
+                        required
                       />
-                      <Button type="button" size="sm" variant="success" onClick={() => { setShowPMBudget(false); update("productionManagerBudget", pmBudget) }}>Set</Button>
-                      <Button type="button" size="sm" variant="ghost" onClick={() => { setShowPMBudget(false); setPmBudget("") }}>Cancel</Button>
+                      <Button type="button" size="sm" variant="success" onClick={() => { if (!pmBudget || Number(pmBudget) <= 0) return; setShowPMBudget(false); update("productionManagerBudget", pmBudget) }}>Set</Button>
                     </div>
                     {pmBudget && Number(pmBudget) > Number(form.estimatedBudget) && (
                       <p className="text-xs text-red-500">Production manager budget cannot exceed estimated budget ({form.estimatedBudget})</p>
