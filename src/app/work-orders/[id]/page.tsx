@@ -1157,7 +1157,11 @@ export default function WorkOrderDetailPage() {
                     />
                   </div>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-gray-500">Est. Cost (per unit)</label>
+                    <Input type="number" value={newMaterial.estimatedCost} onChange={(e) => setNewMaterial({ ...newMaterial, estimatedCost: e.target.value })} placeholder="0.00" />
+                  </div>
                   <div className="space-y-1">
                     <label className="text-xs text-gray-500">Supplier Preference</label>
                     <Input value={newMaterial.supplierPreference} onChange={(e) => setNewMaterial({ ...newMaterial, supplierPreference: e.target.value })} placeholder="Supplier name" />
@@ -1211,6 +1215,7 @@ export default function WorkOrderDetailPage() {
                       <tr className="border-b border-gray-100">
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Material</th>
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Req</th>
+                        <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Est. Cost</th>
                         {(isInventoryManager || canManage) && <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Available</th>}
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Used</th>
                         <th className="text-left py-2 px-2 text-gray-500 text-xs uppercase">Balance</th>
@@ -1222,7 +1227,7 @@ export default function WorkOrderDetailPage() {
                       {materials.map((mat: any) => (
                         <tr key={mat.id} className="border-b border-gray-50">
                           {editingMaterial === mat.id ? (
-                            <td colSpan={isInventoryManager || canManage ? 7 : 6} className="py-2 px-2">
+                            <td colSpan={isInventoryManager || canManage ? 8 : 7} className="py-2 px-2">
                               <div className="flex gap-2 items-start">
                                 <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2">
                                   <Input size={8} value={editForm.materialName || mat.materialName} onChange={(e: any) => setEditForm({ ...editForm, materialName: e.target.value })} placeholder="Name" />
@@ -1242,6 +1247,7 @@ export default function WorkOrderDetailPage() {
                             <>
                               <td className="py-2 px-2 font-medium text-gray-900">{mat.materialName}</td>
                               <td className="py-2 px-2">{mat.requiredQuantity} {mat.unit}</td>
+                              <td className="py-2 px-2 text-sm text-gray-700">{formatCurrency((mat.estimatedCost || 0) * mat.requiredQuantity)}</td>
                               {(isInventoryManager || canManage) && <td className="py-2 px-2 font-medium text-[#4F8EF7]">{mat.totalStockQuantity ?? "—"}</td>}
                               <td className="py-2 px-2">{mat.computedAvailableQuantity ?? mat.availableQuantity ?? 0}</td>
                               <td className="py-2 px-2 text-[#F45D5D]">{mat.computedMissingQuantity ?? mat.missingQuantity ?? 0}</td>

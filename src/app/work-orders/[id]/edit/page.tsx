@@ -42,7 +42,7 @@ export default function EditWorkOrderPage() {
   const [pmBudget, setPmBudget] = useState("")
 
   const isOwnerOrManager = user?.role === "OWNER" || user?.role === "MANAGER"
-  const canSetPMBudget = user?.role === "OWNER" || user?.role === "PRODUCTION_MANAGER"
+  const canSetPMBudget = user?.role === "OWNER" || user?.role === "MANAGER"
 
   const { data: workOrderData, isLoading: woLoading } = useQuery({
     queryKey: ["work-order", params.id],

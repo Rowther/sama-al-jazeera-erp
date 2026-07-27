@@ -72,40 +72,71 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         status = "OUT_OF_STOCK"; availableQty = 0; missingQty = requiredQty
       }
 
-      return { ...mat, computedStatus: status, computedAvailableQuantity: availableQty, computedMissingQuantity: missingQty, totalStockQuantity: totalAvailable, inventoryMatches: matchingItems.map(i => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit })) }
+      let computedEstimatedCost = mat.estimatedCost
+      if ((!computedEstimatedCost || computedEstimatedCost === 0) && matchingItems.length > 0) {
+        const priceItem = matchingItems.find((i: any) => i.price > 0)
+        if (priceItem) {
+          computedEstimatedCost = priceItem.price
+        }
+      }
+
+      return { ...mat, estimatedCost: computedEstimatedCost || mat.estimatedCost, computedStatus: status, computedAvailableQuantity: availableQty, computedMissingQuantity: missingQty, totalStockQuantity: totalAvailable, inventoryMatches: matchingItems.map(i => ({ id: i.id, name: i.name, stock: i.stockQuantity, unit: i.unit, price: i.price })) }
     })
+
+    for (const mat of enriched) {
+      if (mat.estimatedCost && mat.estimatedCost > 0 && materials.find(m => m.id === mat.id)?.estimatedCost === 0) {
+        await prisma.workOrderMaterial.update({
+          where: { id: mat.id },
+          data: { estimatedCost: mat.estimatedCost },
+        })
+      }
+    }
 
     const approvedMaterials = materials.filter(m => m.status === "APPROVED")
     if (approvedMaterials.length > 0) {
+      const enrichedApproved = enriched.filter(m => m.status === "APPROVED")
+
       const existingExpenses = await prisma.expense.findMany({
         where: {
           workOrderId: params.id,
           category: "MATERIAL",
         },
-        select: { description: true },
       })
-      const existingDescriptions = new Set(existingExpenses.map(e => e.description))
 
-      for (const mat of approvedMaterials) {
+      for (const mat of enrichedApproved) {
         const expectedDesc = `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`
-        if (existingDescriptions.has(expectedDesc)) continue
+        const existingExpense = existingExpenses.find(e => e.description === expectedDesc)
 
         let expenseAmount = mat.estimatedCost || mat.actualCost || 0
-        if (mat.inventoryItemId && expenseAmount === 0) {
-          const invItem = allInventory.find(i => i.id === mat.inventoryItemId)
-          if (invItem && invItem.price > 0) {
-            expenseAmount = invItem.price * mat.requiredQuantity
+        if (expenseAmount === 0) {
+          const priceItem = (mat.inventoryMatches || []).find((i: any) => i.price > 0)
+          if (priceItem) {
+            expenseAmount = priceItem.price * mat.requiredQuantity
+          } else if (mat.inventoryItemId) {
+            const invItem = allInventory.find(i => i.id === mat.inventoryItemId)
+            if (invItem && invItem.price > 0) {
+              expenseAmount = invItem.price * mat.requiredQuantity
+            }
           }
         }
 
-        await prisma.expense.create({
-          data: {
-            workOrderId: params.id,
-            category: "MATERIAL",
-            amount: expenseAmount,
-            description: expectedDesc,
-          },
-        })
+        if (existingExpense) {
+          if (existingExpense.amount === 0 && expenseAmount > 0) {
+            await prisma.expense.update({
+              where: { id: existingExpense.id },
+              data: { amount: expenseAmount },
+            })
+          }
+        } else {
+          await prisma.expense.create({
+            data: {
+              workOrderId: params.id,
+              category: "MATERIAL",
+              amount: expenseAmount,
+              description: expectedDesc,
+            },
+          })
+        }
       }
 
       const totalExpenses = await prisma.expense.aggregate({
