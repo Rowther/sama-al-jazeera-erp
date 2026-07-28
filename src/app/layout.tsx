@@ -1,11 +1,18 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import Script from "next/script"
-import { dirhamFont } from "dirham/next"
+import localFont from "next/font/local"
 import "./globals.css"
 import { Providers } from "./providers"
 
 const inter = Inter({ subsets: ["latin"] })
+
+const dirhamFont = localFont({
+  src: "../../node_modules/dirham/dist/fonts/dirham.woff2",
+  display: "swap",
+  variable: "--font-dirham",
+  preload: false,
+})
 
 const siteUrl = "https://www.datastream.ae"
 const siteName = "DataStream"
