@@ -92,18 +92,21 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       }
     }
 
-    const approvedMaterials = materials.filter(m => m.status === "APPROVED")
-    if (approvedMaterials.length > 0) {
-      const enrichedApproved = enriched.filter(m => m.status === "APPROVED")
+    const existingExpenses = await prisma.expense.findMany({
+      where: {
+        workOrderId: params.id,
+        category: "MATERIAL",
+      },
+    })
 
-      const existingExpenses = await prisma.expense.findMany({
-        where: {
-          workOrderId: params.id,
-          category: "MATERIAL",
-        },
-      })
+    const materialsNeedingReconciliation = enriched.filter(m => {
+      if (m.status === "APPROVED") return true
+      const expectedDesc = `Material: ${m.materialName}${m.category ? ` (${m.category})` : ""}`
+      return existingExpenses.some(e => e.description === expectedDesc)
+    })
 
-      for (const mat of enrichedApproved) {
+    if (materialsNeedingReconciliation.length > 0) {
+      for (const mat of materialsNeedingReconciliation) {
         const expectedDesc = `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`
         const existingExpense = existingExpenses.find(e => e.description === expectedDesc)
 
@@ -130,7 +133,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
               data: { amount: expenseAmount },
             })
           }
-        } else {
+        } else if (mat.status === "APPROVED") {
           await prisma.expense.create({
             data: {
               workOrderId: params.id,

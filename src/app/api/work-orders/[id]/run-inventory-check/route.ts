@@ -96,10 +96,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           missingQty = requiredQty
         }
 
+        const newStatus = (mat.status === "APPROVED" || mat.status === "REJECTED") ? mat.status : status
         await tx.workOrderMaterial.update({
           where: { id: mat.id },
           data: {
-            status: status as any,
+            status: newStatus as any,
             availableQuantity: availableQty,
             missingQuantity: missingQty,
           },
