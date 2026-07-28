@@ -6,8 +6,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number | null | undefined): string {
-  if (amount == null || isNaN(amount)) return "\u20C3 0.00"
-  return `\u20C3 ${new Intl.NumberFormat('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}`
+  if (amount == null || isNaN(amount)) return "AED 0.00"
+  return new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED' }).format(amount)
 }
 
 export function formatDate(date: Date | string): string {
