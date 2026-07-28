@@ -323,7 +323,7 @@ export default function WorkOrderDetailPage() {
   const totalFromInstallments = (wo.installments || []).reduce((s: number, i: any) => s + i.amount, 0)
   const totalPayments = wo.advanceReceived || 0
   const totalAmount = wo.finalPrice || wo.estimatedBudget || 0
-  const profit = totalPayments - totalExpenses
+  const profit = totalAmount - totalExpenses
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
 
   const estimatedMaterialCost = materials.reduce((s: number, m: any) => s + (m.estimatedCost * m.requiredQuantity), 0)

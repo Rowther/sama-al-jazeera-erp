@@ -107,7 +107,10 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         const expectedDesc = `Material: ${mat.materialName}${mat.category ? ` (${mat.category})` : ""}`
         const existingExpense = existingExpenses.find(e => e.description === expectedDesc)
 
-        let expenseAmount = mat.estimatedCost || mat.actualCost || 0
+        let expenseAmount = (mat.estimatedCost || 0) * mat.requiredQuantity
+        if (expenseAmount === 0) {
+          expenseAmount = mat.actualCost || 0
+        }
         if (expenseAmount === 0) {
           const priceItem = (mat.inventoryMatches || []).find((i: any) => i.price > 0)
           if (priceItem) {
@@ -121,7 +124,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         }
 
         if (existingExpense) {
-          if (existingExpense.amount === 0 && expenseAmount > 0) {
+          if (Math.abs(existingExpense.amount - expenseAmount) > 0.01) {
             await prisma.expense.update({
               where: { id: existingExpense.id },
               data: { amount: expenseAmount },
@@ -316,8 +319,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
 
         for (const mat of pendingMaterials) {
-          let expenseAmount = mat.estimatedCost || mat.actualCost || 0
-          if (mat.inventoryItemId) {
+          let expenseAmount = (mat.estimatedCost || 0) * mat.requiredQuantity
+          if (expenseAmount === 0) {
+            expenseAmount = mat.actualCost || 0
+          }
+          if (expenseAmount === 0 && mat.inventoryItemId) {
             const invItem = await tx.inventoryItem.findUnique({
               where: { id: mat.inventoryItemId },
               select: { price: true },
@@ -454,8 +460,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
 
         if (status === "APPROVED") {
-          let expenseAmount = material.estimatedCost || material.actualCost || 0
-          if (material.inventoryItemId) {
+          let expenseAmount = (material.estimatedCost || 0) * material.requiredQuantity
+          if (expenseAmount === 0) {
+            expenseAmount = material.actualCost || 0
+          }
+          if (expenseAmount === 0 && material.inventoryItemId) {
             const invItem = await tx.inventoryItem.findUnique({
               where: { id: material.inventoryItemId },
               select: { price: true },
