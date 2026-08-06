@@ -327,7 +327,8 @@ export default function WorkOrderDetailPage() {
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
 
   const estimatedMaterialCost = materials.reduce((s: number, m: any) => s + (m.estimatedCost * m.requiredQuantity), 0)
-  const actualMaterialCost = materials.reduce((s: number, m: any) => s + m.actualCost, 0)
+  const materialExpenseTotal = (wo.expenses || []).filter((e: any) => e.category === "MATERIAL").reduce((s: number, e: any) => s + e.amount, 0)
+  const actualMaterialCost = materialExpenseTotal || materials.reduce((s: number, m: any) => s + m.actualCost, 0)
   const purchasedMaterialCost = purchaseEntries.reduce((s: number, pe: any) => s + pe.totalCost, 0)
   const inventoryUsedCost = actualMaterialCost - purchasedMaterialCost
   const extraCost = Math.max(0, actualMaterialCost - estimatedMaterialCost)
