@@ -319,7 +319,31 @@ export default function WorkOrderDetailPage() {
   const materials = materialsData?.materials || []
   const purchaseEntries = purchaseEntriesData?.purchaseEntries || []
 
-  const totalExpenses = (wo.expenses || []).reduce((s: number, e: any) => s + e.amount, 0)
+  const materialExpenseDescription = (m: any) => `Material: ${m.materialName}${m.category ? ` (${m.category})` : ""}`
+  const approvedMaterials = materials.filter((m: any) => m.status === "APPROVED")
+
+  const consumedExpenseIds = new Set<string>()
+  const materialExpenseRows = approvedMaterials.map((m: any) => {
+    const desc = materialExpenseDescription(m)
+    const expected = (m.estimatedCost || 0) * (m.requiredQuantity || 0)
+    const linked = (wo.expenses || []).find((e: any) => e.category === "MATERIAL" && e.description === desc && !consumedExpenseIds.has(e.id))
+    if (linked) consumedExpenseIds.add(linked.id)
+    return { id: linked?.id || `material-${m.id}`, isMaterial: true, category: "MATERIAL", description: desc, amount: linked?.amount ?? expected, synthetic: !linked }
+  })
+
+  const approvedExpected = new Map(approvedMaterials.map((m: any) => [materialExpenseDescription(m), (m.estimatedCost || 0) * (m.requiredQuantity || 0)] as [string, number]))
+  const otherExpenseRows = (wo.expenses || [])
+    .filter((e: any) => !consumedExpenseIds.has(e.id))
+    .filter((e: any) => {
+      if (e.category !== "MATERIAL" || !e.description) return true
+      const expected = approvedExpected.get(e.description)
+      if (expected == null) return true
+      return Math.abs(Number(e.amount) - Number(expected)) > 0.01
+    })
+    .map((e: any) => ({ id: e.id, isMaterial: false, category: e.category, description: e.description || formatDate(e.date), amount: e.amount }))
+
+  const expenseRows = [...materialExpenseRows, ...otherExpenseRows]
+  const totalExpenses = expenseRows.reduce((s: number, r: any) => s + r.amount, 0)
   const totalFromInstallments = (wo.installments || []).reduce((s: number, i: any) => s + i.amount, 0)
   const totalPayments = wo.advanceReceived || 0
   const totalAmount = wo.finalPrice || wo.estimatedBudget || 0
@@ -327,7 +351,7 @@ export default function WorkOrderDetailPage() {
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
 
   const estimatedMaterialCost = materials.reduce((s: number, m: any) => s + (m.estimatedCost * m.requiredQuantity), 0)
-  const materialExpenseTotal = (wo.expenses || []).filter((e: any) => e.category === "MATERIAL").reduce((s: number, e: any) => s + e.amount, 0)
+  const materialExpenseTotal = expenseRows.filter((r: any) => r.category === "MATERIAL").reduce((s: number, r: any) => s + r.amount, 0)
   const actualMaterialCost = materialExpenseTotal || materials.reduce((s: number, m: any) => s + m.actualCost, 0)
   const purchasedMaterialCost = purchaseEntries.reduce((s: number, pe: any) => s + pe.totalCost, 0)
   const inventoryUsedCost = actualMaterialCost - purchasedMaterialCost
@@ -335,10 +359,10 @@ export default function WorkOrderDetailPage() {
   const pendingSupplierPayments = purchaseEntries.filter((pe: any) => pe.paymentStatus === "PENDING").reduce((s: number, pe: any) => s + pe.totalCost, 0)
 
   const costData = [
-    ...(wo.expenses || []).reduce((acc: any, e: any) => {
-      const existing = acc.find((a: any) => a.name === e.category)
-      if (existing) existing.value += e.amount
-      else acc.push({ name: e.category, value: e.amount })
+    ...expenseRows.reduce((acc: any, r: any) => {
+      const existing = acc.find((a: any) => a.name === r.category)
+      if (existing) existing.value += r.amount
+      else acc.push({ name: r.category, value: r.amount })
       return acc
     }, []),
   ]
@@ -619,11 +643,11 @@ export default function WorkOrderDetailPage() {
                     )
                   )}
                 </div>
-                {(wo.expenses || []).length === 0 ? (
+                {expenseRows.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-3">No expenses recorded</p>
                 ) : (
                   <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
-                    {(wo.expenses || []).map((exp: any) => (
+                    {expenseRows.map((exp: any) => (
                       <div key={exp.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-gray-100">
                         <div>
                           <p className="text-sm font-medium text-gray-900">{exp.category}</p>
@@ -631,7 +655,7 @@ export default function WorkOrderDetailPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(exp.amount)}</p>
-                          {(user?.role === "OWNER" || user?.role === "MANAGER") && (
+                          {(user?.role === "OWNER" || user?.role === "MANAGER") && !exp.synthetic && (
                             <div className="flex gap-0.5">
                               <Button size="sm" variant="ghost" onClick={() => {
                                 setEditingExpense(exp.id)
