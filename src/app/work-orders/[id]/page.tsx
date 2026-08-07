@@ -769,8 +769,8 @@ export default function WorkOrderDetailPage() {
         </Card>
       )}
 
-      {/* Production Budget Only — PRODUCTION_MANAGER */}
-      {user?.role === "PRODUCTION_MANAGER" && (
+      {/* Production Budget Only — PRODUCTION_MANAGER & INVENTORY_MANAGER */}
+      {(user?.role === "PRODUCTION_MANAGER" || user?.role === "INVENTORY_MANAGER") && (
         <Card className="border-t-4 border-t-[#36B37E]">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
