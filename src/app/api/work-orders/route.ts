@@ -70,6 +70,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: "Estimate Ref No. is required" }, { status: 400 })
     }
 
+    if (!data.customerLocation || !data.customerLocation.trim()) {
+      return NextResponse.json({ message: "Delivery Location is required" }, { status: 400 })
+    }
+
+    if (!data.dueDate) {
+      return NextResponse.json({ message: "Due Date is required" }, { status: 400 })
+    }
+
+    if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+      return NextResponse.json({ message: "At least one item must be added" }, { status: 400 })
+    }
+
+    if ((data.items as { name?: string }[]).some((item) => !item.name || !String(item.name).trim())) {
+      return NextResponse.json({ message: "Every item must have a name" }, { status: 400 })
+    }
+
     if (!data.estimatedBudget || Number(data.estimatedBudget) <= 0) {
       return NextResponse.json({ message: "Total Job Value is required" }, { status: 400 })
     }

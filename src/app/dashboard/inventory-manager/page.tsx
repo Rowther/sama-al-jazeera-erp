@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { Modal } from "@/components/ui/modal"
 import { formatCurrency } from "@/lib/utils"
-import { Package, AlertTriangle, ShoppingCart, TrendingUp, PlusCircle, BarChart3, PackagePlus, Calendar, MessageSquare } from "lucide-react"
+import { Package, AlertTriangle, ShoppingCart, TrendingUp, PlusCircle, BarChart3, PackagePlus, Calendar, MessageSquare, DollarSign } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
@@ -46,6 +46,7 @@ export default function InventoryManagerDashboard() {
   const workOrders = workOrdersData?.workOrders || []
   const allWorkOrders = allWorkOrdersData?.workOrders || []
   const productionReady = workOrders.filter((w: any) => w.status === "READY_FOR_PRODUCTION" || w.status === "PRODUCTION_STARTED")
+  const totalProductionBudget = productionReady.reduce((s: number, w: any) => s + (Number(w.productionManagerBudget) || 0), 0)
 
   const totalItems = inventory.length
   const totalValue = inventory.reduce((s: number, i: any) => s + (i.price * i.stockQuantity), 0)
@@ -119,7 +120,7 @@ export default function InventoryManagerDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4" data-tour="inventory-kpis">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" data-tour="inventory-kpis">
         <Card><CardContent className="p-4 text-center">
           <Package className="h-5 w-5 text-[#4F8EF7] mx-auto mb-1" />
           <p className="text-2xl font-bold text-gray-900">{totalItems}</p>
@@ -139,6 +140,11 @@ export default function InventoryManagerDashboard() {
           <ShoppingCart className="h-5 w-5 text-[#FFB648] mx-auto mb-1" />
           <p className="text-2xl font-bold text-gray-900">{productionReady.length}</p>
           <p className="text-xs text-gray-500">Ready for Production</p>
+        </CardContent></Card>
+        <Card><CardContent className="p-4 text-center">
+          <DollarSign className="h-5 w-5 text-[#8B5CF6] mx-auto mb-1" />
+          <p className="text-2xl font-bold text-gray-900">{formatCurrency(totalProductionBudget)}</p>
+          <p className="text-xs text-gray-500">Production Budget</p>
         </CardContent></Card>
       </div>
 
@@ -389,7 +395,12 @@ export default function InventoryManagerDashboard() {
                     <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
                     <p className="text-xs text-gray-400">{wo.customer?.name}</p>
                   </div>
-                  <StatusBadge status={wo.status} />
+                  <div className="text-right">
+                    <StatusBadge status={wo.status} />
+                    {Number(wo.productionManagerBudget) > 0 && (
+                      <p className="text-xs text-gray-500 mt-1">Production Budget: {formatCurrency(wo.productionManagerBudget)}</p>
+                    )}
+                  </div>
                 </div>
               ))}
               {productionReady.length === 0 && (

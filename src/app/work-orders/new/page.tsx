@@ -42,6 +42,7 @@ export default function NewWorkOrderPage() {
   const [uploadingIndex, setUploadingIndex] = useState<number | null>(null)
   const [showPMBudget, setShowPMBudget] = useState(false)
   const [pmBudget, setPmBudget] = useState("")
+  const [sameAsCustomer, setSameAsCustomer] = useState(false)
 
   // const [customerSearch, setCustomerSearch] = useState("")
   // const [showCustomerDropdown, setShowCustomerDropdown] = useState(false)
@@ -138,6 +139,22 @@ export default function NewWorkOrderPage() {
       setError("Estimate Ref No. is required")
       return
     }
+    if (!form.customerLocation.trim()) {
+      setError("Delivery Location is required")
+      return
+    }
+    if (!form.dueDate) {
+      setError("Due Date is required")
+      return
+    }
+    if (items.length === 0) {
+      setError("At least one item must be added")
+      return
+    }
+    if (items.some((i) => !i.name.trim())) {
+      setError("Every item must have a name")
+      return
+    }
     if (!form.estimatedBudget || Number(form.estimatedBudget) <= 0) {
       setError("Total Job Value is required")
       return
@@ -223,21 +240,42 @@ export default function NewWorkOrderPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Location</label>
-              <Input value={form.customerLocation} onChange={(e) => update("customerLocation", e.target.value)} placeholder="Enter location" />
+              <label className="text-sm font-medium text-gray-700">Delivery Location <span className="text-red-500">*</span></label>
+              <Input value={form.customerLocation} onChange={(e) => update("customerLocation", e.target.value)} required placeholder="Enter delivery location" />
             </div>
-            <div className="border-t border-gray-100 pt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Company Name</label>
-                <Input value={form.companyName} onChange={(e) => update("companyName", e.target.value)} placeholder="Enter company name" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Company Contact</label>
-                <Input value={form.companyContact} onChange={(e) => update("companyContact", e.target.value)} placeholder="Enter company contact" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Estimate Ref No. <span className="text-red-500">*</span></label>
-                <Input value={form.estimateRef} onChange={(e) => update("estimateRef", e.target.value)} placeholder="Enter estimate reference" required />
+            <div className="border-t border-gray-100 pt-4 space-y-4">
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={sameAsCustomer}
+                  onChange={(e) => {
+                    const checked = e.target.checked
+                    setSameAsCustomer(checked)
+                    if (checked) {
+                      setForm({
+                        ...form,
+                        companyName: form.customerName,
+                        companyContact: form.customerPhone,
+                      })
+                    }
+                  }}
+                  className="h-4 w-4 rounded border-gray-300 text-[#4F8EF7] focus:ring-[#4F8EF7]"
+                />
+                Company name and contact same as customer name and contact
+              </label>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Company Name</label>
+                  <Input value={form.companyName} onChange={(e) => update("companyName", e.target.value)} placeholder="Enter company name" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Company Contact</label>
+                  <Input value={form.companyContact} onChange={(e) => update("companyContact", e.target.value)} placeholder="Enter company contact" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Estimate Ref No. <span className="text-red-500">*</span></label>
+                  <Input value={form.estimateRef} onChange={(e) => update("estimateRef", e.target.value)} placeholder="Enter estimate reference" required />
+                </div>
               </div>
             </div>
           </CardContent>
@@ -271,8 +309,8 @@ export default function NewWorkOrderPage() {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-gray-700">Due Date</label>
-                <Input type="date" value={form.dueDate} onChange={(e) => update("dueDate", e.target.value)} />
+                <label className="text-sm font-medium text-gray-700">Due Date <span className="text-red-500">*</span></label>
+                <Input type="date" value={form.dueDate} onChange={(e) => update("dueDate", e.target.value)} required />
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -306,7 +344,7 @@ export default function NewWorkOrderPage() {
         <Card className="mt-6">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle>Items</CardTitle>
+              <CardTitle>Items <span className="text-red-500">*</span></CardTitle>
               <Button type="button" variant="outline" size="sm" onClick={addItem}>
                 <Plus className="h-4 w-4 mr-1" /> Add Item
               </Button>
