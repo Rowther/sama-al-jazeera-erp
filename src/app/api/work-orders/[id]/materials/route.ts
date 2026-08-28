@@ -16,125 +16,75 @@ interface MaterialLike {
   status?: string
 }
 
-interface InventoryLike {
-  id: string
-  price: number | null
-}
-
 function materialExpenseDescription(material: { materialName: string; category?: string | null }) {
   return `Material: ${material.materialName}${material.category ? ` (${material.category})` : ""}`
 }
 
-function computeMaterialExpenseAmount(material: MaterialLike, inventoryMatches?: InventoryLike[], allInventory?: InventoryLike[]) {
+async function resolveMaterialAmount(tx: TxClient, material: MaterialLike): Promise<number> {
   const estimatedTotal = (material.estimatedCost || 0) * (material.requiredQuantity || 0)
   if (estimatedTotal > 0) return estimatedTotal
   if ((material.actualCost || 0) > 0) return material.actualCost || 0
-  const priceItem = (inventoryMatches || []).find((i) => i.price && i.price > 0)
-  if (priceItem && priceItem.price) return priceItem.price * (material.requiredQuantity || 1)
+
   if (material.inventoryItemId) {
-    const invItem = (allInventory || []).find((i) => i.id === material.inventoryItemId)
-    if (invItem && invItem.price && invItem.price > 0) return invItem.price * (material.requiredQuantity || 1)
-  }
-  return 0
-}
-
-async function upsertMaterialExpense(tx: TxClient, workOrderId: string, material: MaterialLike, userId: string) {
-  const description = materialExpenseDescription(material)
-  let amount = computeMaterialExpenseAmount(material, material.inventoryMatches)
-
-  if (amount <= 0 && material.inventoryItemId) {
     const invItem = await tx.inventoryItem.findUnique({
       where: { id: material.inventoryItemId },
       select: { price: true },
     })
     if (invItem && invItem.price > 0) {
-      amount = invItem.price * (material.requiredQuantity || 1)
+      return invItem.price * (material.requiredQuantity || 1)
     }
   }
-
-  if (amount <= 0) return null
-
-  const existing = await tx.expense.findFirst({
-    where: { workOrderId, category: "MATERIAL", description },
-  })
-
-  if (existing) {
-    if (Math.abs(existing.amount - amount) > 0.01) {
-      return tx.expense.update({
-        where: { id: existing.id },
-        data: { amount, approvedById: userId },
-      })
-    }
-    return existing
-  }
-
-  return tx.expense.create({
-    data: { workOrderId, category: "MATERIAL", amount, description, approvedById: userId },
-  })
+  return 0
 }
 
-async function reconcileMaterialExpenses(tx: TxClient, workOrderId: string, materials: MaterialLike[], allInventory: InventoryLike[]) {
+async function reconcileMaterialExpenses(tx: TxClient, workOrderId: string, materials: MaterialLike[], userId?: string) {
   const existingExpenses = await tx.expense.findMany({
     where: { workOrderId, category: "MATERIAL" },
     orderBy: { createdAt: "asc" },
   })
 
-  const groups = new Map<string, MaterialLike[]>()
-  for (const m of materials) {
-    const key = materialExpenseDescription(m)
-    const arr = groups.get(key) || []
-    arr.push(m)
-    groups.set(key, arr)
-  }
+  const approved = materials.filter((m) => m.status === "APPROVED")
+  const pool = [...existingExpenses]
 
-  let changed = false
+  for (const mat of approved) {
+    const desc = materialExpenseDescription(mat)
+    const amount = await resolveMaterialAmount(tx, mat)
 
-  for (const [desc, group] of groups) {
-    const matching = existingExpenses.filter((e) => e.description === desc)
-    const targets = group.filter((m) => m.status === "APPROVED" || matching.length > 0)
-    if (targets.length === 0) continue
+    const idx = pool.findIndex((e) => e.description === desc)
+    if (idx >= 0) {
+      const slot = pool[idx]
+      pool.splice(idx, 1)
 
-    const expectedAmounts = targets.map((m) => computeMaterialExpenseAmount(m, m.inventoryMatches, allInventory))
-
-    const extras = matching.slice(targets.length)
-    const duplicateIds = extras
-      .filter((e) => expectedAmounts.some((amt) => amt > 0 && Math.abs(e.amount - amt) <= 0.01))
-      .map((e) => e.id)
-
-    if (duplicateIds.length > 0) {
-      await tx.expense.deleteMany({ where: { id: { in: duplicateIds } } })
-      changed = true
-    }
-
-    for (let i = 0; i < targets.length; i++) {
-      const mat = targets[i]
-      const amount = expectedAmounts[i]
-      const slot = matching[i]
-
-      if (slot) {
-        if (amount > 0 && Math.abs(slot.amount - amount) > 0.01) {
-          await tx.expense.update({ where: { id: slot.id }, data: { amount } })
-          changed = true
-        }
-      } else if (mat.status === "APPROVED" && amount > 0) {
-        await tx.expense.create({
-          data: { workOrderId, category: "MATERIAL", amount, description: desc },
-        })
-        changed = true
+      if (amount <= 0) {
+        await tx.expense.delete({ where: { id: slot.id } })
+      } else if (Math.abs(slot.amount - amount) > 0.01) {
+        await tx.expense.update({ where: { id: slot.id }, data: { amount } })
       }
+    } else if (amount > 0) {
+      await tx.expense.create({
+        data: { workOrderId, category: "MATERIAL", amount, description: desc, approvedById: userId || undefined },
+      })
     }
   }
 
-  if (changed) {
-    const total = await tx.expense.aggregate({
-      where: { workOrderId },
-      _sum: { amount: true },
-    })
-    await tx.workOrder.update({
-      where: { id: workOrderId },
-      data: { totalCost: total._sum.amount || 0 },
-    })
+  const staleIds = pool.map((e) => e.id)
+  if (staleIds.length > 0) {
+    await tx.expense.deleteMany({ where: { id: { in: staleIds } } })
   }
+}
+
+async function syncMaterialExpensesToCost(tx: TxClient, workOrderId: string, userId?: string) {
+  const materials = await tx.workOrderMaterial.findMany({ where: { workOrderId } })
+  await reconcileMaterialExpenses(tx, workOrderId, materials, userId)
+
+  const total = await tx.expense.aggregate({
+    where: { workOrderId },
+    _sum: { amount: true },
+  })
+  await tx.workOrder.update({
+    where: { id: workOrderId },
+    data: { totalCost: total._sum.amount || 0 },
+  })
 }
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -228,7 +178,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     }
 
     await prisma.$transaction(async (tx) => {
-      await reconcileMaterialExpenses(tx, params.id, enriched, allInventory)
+      await reconcileMaterialExpenses(tx, params.id, enriched)
     })
 
     return NextResponse.json({ materials: enriched })
@@ -398,18 +348,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         })
 
         for (const mat of pendingMaterials) {
-          await upsertMaterialExpense(tx, params.id, mat, user.userId)
           await deductInventoryForMaterial(tx, mat, user.userId)
         }
 
-        const totalExpenses = await tx.expense.aggregate({
-          where: { workOrderId: params.id },
-          _sum: { amount: true },
-        })
-        await tx.workOrder.update({
-          where: { id: params.id },
-          data: { totalCost: totalExpenses._sum.amount || 0 },
-        })
+        await syncMaterialExpensesToCost(tx, params.id, user.userId)
 
         await tx.activityHistory.create({
           data: {
@@ -458,26 +400,33 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     }
 
     if (action === "edit" && materialId) {
-      const material = await prisma.workOrderMaterial.update({
-        where: { id: materialId },
-        data: {
-          ...(updates.materialName !== undefined && { materialName: updates.materialName }),
-          ...(updates.category !== undefined && { category: updates.category }),
-          ...(updates.requiredQuantity !== undefined && { requiredQuantity: parseFloat(updates.requiredQuantity) }),
-          ...(updates.unit !== undefined && { unit: updates.unit }),
-          ...(updates.estimatedCost !== undefined && { estimatedCost: parseFloat(updates.estimatedCost) }),
-          ...(updates.supplierPreference !== undefined && { supplierPreference: updates.supplierPreference }),
-          ...(updates.priority !== undefined && { priority: updates.priority }),
-          ...(updates.notes !== undefined && { notes: updates.notes }),
-          ...(updates.workOrderItemId !== undefined && { workOrderItemId: updates.workOrderItemId }),
-        },
-      })
+      const material = await prisma.$transaction(async (tx) => {
+        const updated = await tx.workOrderMaterial.update({
+          where: { id: materialId },
+          data: {
+            ...(updates.materialName !== undefined && { materialName: updates.materialName }),
+            ...(updates.category !== undefined && { category: updates.category }),
+            ...(updates.requiredQuantity !== undefined && { requiredQuantity: parseFloat(updates.requiredQuantity) }),
+            ...(updates.unit !== undefined && { unit: updates.unit }),
+            ...(updates.estimatedCost !== undefined && { estimatedCost: parseFloat(updates.estimatedCost) }),
+            ...(updates.supplierPreference !== undefined && { supplierPreference: updates.supplierPreference }),
+            ...(updates.priority !== undefined && { priority: updates.priority }),
+            ...(updates.notes !== undefined && { notes: updates.notes }),
+            ...(updates.workOrderItemId !== undefined && { workOrderItemId: updates.workOrderItemId }),
+          },
+        })
 
-      await prisma.activityHistory.create({
-        data: {
-          workOrderId: params.id, userId: user.userId, action: "MATERIAL_UPDATED",
-          description: `Material "${material.materialName}" updated by ${currentUser.name}`,
-        },
+        await syncMaterialExpensesToCost(tx, params.id, user.userId)
+
+        await tx.activityHistory.create({
+          data: {
+            workOrderId: params.id, userId: user.userId, action: "MATERIAL_UPDATED",
+            description: `Material "${updated.materialName}" updated by ${currentUser.name}`,
+            metadata: { materialId },
+          },
+        })
+
+        return updated
       })
 
       return NextResponse.json({ material })
@@ -487,13 +436,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       const material = await prisma.workOrderMaterial.findUnique({ where: { id: materialId } })
       if (!material) return NextResponse.json({ message: "Material not found" }, { status: 404 })
 
-      await prisma.workOrderMaterial.delete({ where: { id: materialId } })
+      await prisma.$transaction(async (tx) => {
+        await tx.workOrderMaterial.delete({ where: { id: materialId } })
 
-      await prisma.activityHistory.create({
-        data: {
-          workOrderId: params.id, userId: user.userId, action: "MATERIAL_DELETED",
-          description: `Material "${material.materialName}" deleted by ${currentUser.name}`,
-        },
+        await syncMaterialExpensesToCost(tx, params.id, user.userId)
+
+        await tx.activityHistory.create({
+          data: {
+            workOrderId: params.id, userId: user.userId, action: "MATERIAL_DELETED",
+            description: `Material "${material.materialName}" deleted by ${currentUser.name}`,
+            metadata: { materialId },
+          },
+        })
       })
 
       return NextResponse.json({ message: "Deleted" })
@@ -523,16 +477,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         }
 
         if (status === "APPROVED") {
-          await upsertMaterialExpense(tx, params.id, material, user.userId)
-
-          const totalExpenses = await tx.expense.aggregate({
-            where: { workOrderId: params.id },
-            _sum: { amount: true },
-          })
-          await tx.workOrder.update({
-            where: { id: params.id },
-            data: { totalCost: totalExpenses._sum.amount || 0 },
-          })
+          await syncMaterialExpensesToCost(tx, params.id, user.userId)
 
           if (!isReApproval) {
             await deductInventoryForMaterial(tx, material, user.userId)
@@ -559,6 +504,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
               })
             }
           }
+        } else if (status === "REJECTED") {
+          await syncMaterialExpensesToCost(tx, params.id, user.userId)
         }
 
         return { material }

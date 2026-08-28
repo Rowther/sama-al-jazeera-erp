@@ -328,7 +328,7 @@ export default function WorkOrderDetailPage() {
     const expected = (m.estimatedCost || 0) * (m.requiredQuantity || 0)
     const linked = (wo.expenses || []).find((e: any) => e.category === "MATERIAL" && e.description === desc && !consumedExpenseIds.has(e.id))
     if (linked) consumedExpenseIds.add(linked.id)
-    return { id: linked?.id || `material-${m.id}`, isMaterial: true, category: "MATERIAL", description: desc, amount: linked?.amount ?? expected, synthetic: !linked }
+    return { id: linked?.id || `material-${m.id}`, isMaterial: true, category: "MATERIAL", description: desc, amount: expected, synthetic: !linked }
   })
 
   const approvedExpected = new Map(approvedMaterials.map((m: any) => [materialExpenseDescription(m), (m.estimatedCost || 0) * (m.requiredQuantity || 0)] as [string, number]))
