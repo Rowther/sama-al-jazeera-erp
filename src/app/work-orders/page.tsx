@@ -109,6 +109,7 @@ export default function WorkOrdersPage() {
                     </div>
                     <p className="text-xs sm:text-sm text-gray-500 mt-1 truncate">{wo.customer?.name}{wo.customer?.location ? ` • ${wo.customer.location}` : ""}</p>
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-gray-400">
+                      {wo.estimateRef && <span className="font-bold text-gray-700">Est No: {wo.estimateRef}</span>}
                       {wo.dueDate && <span>Due: {formatDate(wo.dueDate)}</span>}
                       {wo.assignedTo?.name && <span>Designer: {wo.assignedTo.name}</span>}
                       {wo.furnitureType && <span>{wo.furnitureType}</span>}

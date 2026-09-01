@@ -1,31 +1,91 @@
 "use client"
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Modal } from "@/components/ui/modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { TrendingUp, TrendingDown, Download } from "lucide-react"
+import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
 const COLORS = ["#4F8EF7", "#36B37E", "#FFB648", "#F45D5D", "#8B5CF6", "#EC4899"]
 
+const PAYMENT_METHODS = [
+  { value: "CASH", label: "Cash", icon: Banknote },
+  { value: "BANK_TRANSFER", label: "Bank Transfer", icon: Landmark },
+  { value: "CHEQUE", label: "Cheque", icon: FileCheck2 },
+]
+
+const paymentMethodLabel = (method?: string) =>
+  PAYMENT_METHODS.find((m) => m.value === method)?.label || "Cash"
+
+const methodFromPayment = (p: any) => {
+  const match = p?.notes?.match(/Paid via (CASH|BANK_TRANSFER|CHEQUE)/)
+  return match ? match[1] : (p?.reference ? "BANK_TRANSFER" : "CASH")
+}
+
 export default function AccountingPage() {
   const router = useRouter()
-  const [tab, setTab] = useState<"overview" | "expenses" | "payments">("overview")
+  const queryClient = useQueryClient()
+  const [tab, setTab] = useState<"overview" | "expenses" | "payments" | "workorders">("overview")
 
   const { data: analytics } = useQuery({ queryKey: ["analytics"], queryFn: () => api.get<any>("/analytics") })
   const { data: expensesData } = useQuery({ queryKey: ["expenses"], queryFn: () => api.get<any>("/expenses") })
   const { data: paymentsData } = useQuery({ queryKey: ["payments"], queryFn: () => api.get<any>("/payments") })
   const { data: cashFlowData } = useQuery({ queryKey: ["cash-flow"], queryFn: () => api.get<any>("/cash-flow?months=12") })
+  const { data: workOrdersData } = useQuery({ queryKey: ["accounting-work-orders"], queryFn: () => api.get<any>("/work-orders?limit=200&includePayments=true") })
 
   const kpis = analytics?.kpis || {}
   const expenses = expensesData?.expenses || []
   const payments = paymentsData?.payments || []
+  const workOrders = workOrdersData?.workOrders || []
+
+  const [paymentModal, setPaymentModal] = useState<{ workOrderId: string; workOrderNumber: string; customerName: string } | null>(null)
+  const [payForm, setPayForm] = useState({ amount: "", method: "CASH", reference: "", notes: "" })
+
+  const recordPaymentMutation = useMutation({
+    mutationFn: (data: { workOrderId: string; amount: number; paymentMethod: string; reference?: string; notes?: string }) =>
+      api.post("/installments", data),
+    onSuccess: () => {
+      toast.success("Payment recorded")
+      setPaymentModal(null)
+setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
+      queryClient.invalidateQueries({ queryKey: ["accounting-work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      queryClient.invalidateQueries({ queryKey: ["payments"] })
+      queryClient.invalidateQueries({ queryKey: ["installments"] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const openPaymentModal = (wo: any) => {
+    setPaymentModal({ workOrderId: wo.id, workOrderNumber: wo.workOrderId, customerName: wo.customer?.name || "" })
+    setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
+  }
+
+  const submitPayment = () => {
+    if (!paymentModal) return
+    const amount = parseFloat(payForm.amount)
+    if (!amount || amount <= 0) { toast.error("Enter a valid amount"); return }
+    if (payForm.method !== "CASH" && !payForm.reference.trim()) {
+      toast.error(`Reference number is required for ${paymentMethodLabel(payForm.method)} payments`)
+      return
+    }
+    recordPaymentMutation.mutate({
+      workOrderId: paymentModal.workOrderId,
+      amount,
+      paymentMethod: payForm.method,
+      reference: payForm.reference.trim() || undefined,
+      notes: payForm.notes.trim() || undefined,
+    })
+  }
 
   const expenseByCategory = expenses.reduce((acc: any, e: any) => {
     acc[e.category] = (acc[e.category] || 0) + e.amount
@@ -71,11 +131,11 @@ export default function AccountingPage() {
         </CardContent></Card>
       </div>
 
-      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit">
-        {["overview", "expenses", "payments"].map((t) => (
+      <div className="flex gap-1 p-1 bg-gray-100 rounded-xl w-fit flex-wrap">
+        {["overview", "expenses", "payments", "workorders"].map((t) => (
           <button key={t} onClick={() => setTab(t as any)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all capitalize ${tab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-            {t}
+            {t === "workorders" ? "Work Orders" : t}
           </button>
         ))}
       </div>
@@ -210,6 +270,203 @@ export default function AccountingPage() {
           </CardContent>
         </Card>
       )}
+
+      {tab === "workorders" && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-green-50 text-[#36B37E]">
+                    <ArrowUpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Total Payments Received</p>
+                    <p className="text-2xl font-bold text-[#36B37E] mt-0.5">
+                      {formatCurrency(workOrders.reduce((s: number, wo: any) => s + (wo.advanceReceived || 0), 0))}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-blue-50 text-[#4F8EF7]">
+                    <TrendingUp className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Total Job Value</p>
+                    <p className="text-2xl font-bold text-[#4F8EF7] mt-0.5">
+                      {formatCurrency(workOrders.reduce((s: number, wo: any) => s + (wo.estimatedBudget || wo.finalPrice || 0), 0))}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-red-50 text-[#F45D5D]">
+                    <TrendingDown className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Outstanding Balance</p>
+                    <p className="text-2xl font-bold text-[#F45D5D] mt-0.5">
+                      {formatCurrency(workOrders.reduce((s: number, wo: any) => s + (wo.remainingAmount ?? (wo.finalPrice ? Math.max(0, wo.finalPrice - (wo.advanceReceived || 0)) : 0)), 0))}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Work Order Payments</span>
+                <p className="text-xs text-gray-400 font-normal">Click Add Payment to record cash, transfer, or cheque</p>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100">
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Work Order</th>
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Customer</th>
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Job Value</th>
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Advance Received</th>
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Remaining</th>
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Payment Details</th>
+                      <th className="text-left py-3 px-4 text-gray-500 text-xs uppercase">Record Payment</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {workOrders.map((wo: any) => {
+                      const jobValue = wo.estimatedBudget || wo.finalPrice || 0
+                      const advance = wo.advanceReceived || 0
+                      const remaining = wo.remainingAmount ?? (jobValue ? Math.max(0, jobValue - advance) : 0)
+                      return (
+                        <tr key={wo.id} className="border-b border-gray-50 hover:bg-gray-50">
+                          <td className="py-3 px-4">
+                            <button className="font-semibold text-[#4F8EF7] hover:underline text-left"
+                              onClick={() => router.push(`/work-orders/${wo.id}`)}>
+                              {wo.workOrderId}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-gray-700">{wo.customer?.name || "-"}</td>
+                          <td className="py-3 px-4 text-gray-900">{formatCurrency(jobValue)}</td>
+                          <td className="py-3 px-4 font-medium text-[#36B37E]">{formatCurrency(advance)}</td>
+                          <td className="py-3 px-4 font-medium text-[#F45D5D]">{formatCurrency(remaining)}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex flex-col gap-1">
+                              {(wo.payments || []).filter((p: any) => p.type === "INSTALLMENT").length === 0 ? (
+                                <span className="text-xs text-gray-400">No payments yet</span>
+                              ) : (
+                                (wo.payments || [])
+                                  .filter((p: any) => p.type === "INSTALLMENT")
+                                  .slice(0, 3)
+                                  .map((p: any) => (
+                                    <div key={p.id} className="flex items-center gap-1.5 text-xs">
+                                      <Badge className="bg-blue-50 text-[#4F8EF7]">{paymentMethodLabel(methodFromPayment(p))}</Badge>
+                                      <span className="text-gray-600">{formatCurrency(p.amount)}</span>
+                                      {p.reference && <span className="text-gray-400">· {p.reference}</span>}
+                                    </div>
+                                  ))
+                              )}
+                              {(wo.payments || []).filter((p: any) => p.type === "INSTALLMENT").length > 3 && (
+                                <span className="text-[11px] text-gray-400">
+                                  +{(wo.payments || []).filter((p: any) => p.type === "INSTALLMENT").length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <Button size="sm" onClick={() => openPaymentModal(wo)}>
+                              <Plus className="h-3.5 w-3.5 mr-1" /> Add Payment
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      <Modal
+        open={!!paymentModal}
+        onClose={() => { setPaymentModal(null); setPayForm({ amount: "", method: "CASH", reference: "", notes: "" }) }}
+        title="Record Payment"
+        description={paymentModal ? `${paymentModal.workOrderNumber} · ${paymentModal.customerName || "Customer"}` : undefined}
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {PAYMENT_METHODS.map((m) => {
+              const Icon = m.icon
+              const active = payForm.method === m.value
+              return (
+                <button
+                  key={m.value}
+                  type="button"
+                  onClick={() => setPayForm({ ...payForm, method: m.value, reference: "" })}
+                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-sm font-medium transition-all ${active ? "border-[#4F8EF7] bg-[#EEF4FF] text-[#4F8EF7]" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
+                >
+                  <Icon className="h-5 w-5" />
+                  {m.label}
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">Amount *</label>
+            <Input
+              type="number"
+              step="0.01"
+              value={payForm.amount}
+              onChange={(e) => setPayForm({ ...payForm, amount: e.target.value })}
+              placeholder="0.00"
+            />
+          </div>
+
+          {payForm.method !== "CASH" && (
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">
+                Reference Number * <span className="text-red-400">(required for {paymentMethodLabel(payForm.method).toLowerCase()})</span>
+              </label>
+              <Input
+                value={payForm.reference}
+                onChange={(e) => setPayForm({ ...payForm, reference: e.target.value })}
+                placeholder={
+                  payForm.method === "CHEQUE" ? "Cheque number..." : "Transaction / reference number..."
+                }
+              />
+            </div>
+          )}
+
+          <div className="space-y-1">
+            <label className="text-xs text-gray-500">Notes</label>
+            <Input
+              value={payForm.notes}
+              onChange={(e) => setPayForm({ ...payForm, notes: e.target.value })}
+              placeholder="Payment notes..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <Button variant="outline" className="flex-1" onClick={() => setPaymentModal(null)}>Cancel</Button>
+            <Button className="flex-1" onClick={submitPayment} disabled={recordPaymentMutation.isPending}>
+              {recordPaymentMutation.isPending ? "Saving..." : "Save Payment"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

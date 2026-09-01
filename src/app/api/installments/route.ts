@@ -30,18 +30,29 @@ export async function POST(request: NextRequest) {
     if (error) return error
 
     const data = await request.json()
-    const { workOrderId, amount, notes } = data
+    const { workOrderId, amount, notes, paymentMethod, reference } = data
 
     if (!workOrderId || !amount) {
       return NextResponse.json({ message: "Work order ID and amount are required" }, { status: 400 })
     }
+
+    const method = (paymentMethod || "CASH").toUpperCase()
+    if (!["CASH", "BANK_TRANSFER", "CHEQUE"].includes(method)) {
+      return NextResponse.json({ message: "Invalid payment method" }, { status: 400 })
+    }
+
+    if (method !== "CASH" && (!reference || !String(reference).trim())) {
+      return NextResponse.json({ message: `Reference number is required for ${method.replace("_", " ").toLowerCase()} payments` }, { status: 400 })
+    }
+
+    const detailLine = `Paid via ${method}${reference ? ` - Ref: ${reference.trim()}` : ""}`
 
     const result = await prisma.$transaction(async (tx) => {
       const installment = await tx.installment.create({
         data: {
           workOrderId,
           amount: parseFloat(amount),
-          notes: notes || null,
+          notes: notes ? `${notes} (${detailLine})` : detailLine,
         },
       })
 
@@ -70,7 +81,8 @@ export async function POST(request: NextRequest) {
           type: "INSTALLMENT",
           amount: parseFloat(amount),
           status: "PAID",
-          notes: notes || "Installment payment",
+          reference: reference?.trim() || null,
+          notes: notes ? `${notes} (${detailLine})` : detailLine,
           receivedById: user.userId,
         },
       })

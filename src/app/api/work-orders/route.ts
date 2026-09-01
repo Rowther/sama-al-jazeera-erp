@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const assignedTo = searchParams.get("assignedTo")
     const search = searchParams.get("search")
+    const includePaymentDetails = searchParams.get("includePayments") === "true"
 
     const where: Record<string, unknown> = {}
     if (status) where.status = status
@@ -35,6 +36,10 @@ export async function GET(request: NextRequest) {
           assignedTo: { select: { id: true, name: true } },
           createdBy: { select: { id: true, name: true } },
           _count: { select: { designs: true, expenses: true } },
+          ...(includePaymentDetails && {
+            installments: { orderBy: { date: "desc" } },
+            payments: { orderBy: { createdAt: "desc" } },
+          }),
         },
         orderBy: { createdAt: "desc" },
         skip,
