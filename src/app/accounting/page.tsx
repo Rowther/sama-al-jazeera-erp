@@ -81,6 +81,7 @@ export default function AccountingPage() {
       queryClient.invalidateQueries({ queryKey: ["analytics"] })
       queryClient.invalidateQueries({ queryKey: ["payments"] })
       queryClient.invalidateQueries({ queryKey: ["installments"] })
+      queryClient.invalidateQueries({ queryKey: ["work-order"] })
     },
     onError: (err: any) => toast.error(err.message),
   })

@@ -248,6 +248,10 @@ export default function WorkOrderDetailPage() {
       setPaymentAmount("")
       setPaymentNotes("")
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+      queryClient.invalidateQueries({ queryKey: ["accounting-work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      queryClient.invalidateQueries({ queryKey: ["payments"] })
+      queryClient.invalidateQueries({ queryKey: ["installments"] })
     },
     onError: (err: any) => toast.error(err.message),
   })
@@ -345,7 +349,7 @@ export default function WorkOrderDetailPage() {
   const expenseRows = [...materialExpenseRows, ...otherExpenseRows]
   const totalExpenses = expenseRows.reduce((s: number, r: any) => s + r.amount, 0)
   const totalFromInstallments = (wo.installments || []).reduce((s: number, i: any) => s + i.amount, 0)
-  const totalPayments = wo.advanceReceived || 0
+  const totalPayments = totalFromInstallments || wo.advanceReceived || 0
   const totalAmount = wo.finalPrice || wo.estimatedBudget || 0
   const profit = totalAmount - totalExpenses
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
@@ -519,7 +523,7 @@ export default function WorkOrderDetailPage() {
               </div>
               <div className="p-4 rounded-xl bg-green-50">
                 <p className="text-xs text-gray-500">Customer Advance</p>
-                <p className="text-xl font-bold text-[#36B37E]">{formatCurrency(wo.advanceReceived)}</p>
+                <p className="text-xl font-bold text-[#36B37E]">{formatCurrency(totalPayments)}</p>
               </div>
               <div className="p-4 rounded-xl bg-red-50">
                 <p className="text-xs text-gray-500">Total Spent</p>
@@ -726,7 +730,7 @@ export default function WorkOrderDetailPage() {
               <div className="grid grid-cols-3 gap-3 mb-4">
                 <div className="p-3 rounded-xl bg-green-50">
                   <p className="text-xs text-gray-500">Advance</p>
-                  <p className="text-lg font-bold text-[#36B37E]">{formatCurrency(wo.advanceReceived)}</p>
+                  <p className="text-lg font-bold text-[#36B37E]">{formatCurrency(totalPayments)}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-50">
                   <p className="text-xs text-gray-500">Total Paid</p>
