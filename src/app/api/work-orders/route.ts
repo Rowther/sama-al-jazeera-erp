@@ -19,7 +19,9 @@ export async function GET(request: NextRequest) {
     if (search) {
       where.OR = [
         { workOrderId: { contains: search, mode: "insensitive" } },
+        { estimateRef: { contains: search, mode: "insensitive" } },
         { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { phone: { contains: search, mode: "insensitive" } } },
       ]
     }
     if (user.role === "DESIGNER") where.assignedToId = user.userId

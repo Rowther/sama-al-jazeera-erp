@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query"
 import { api } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -10,9 +10,11 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Modal } from "@/components/ui/modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle } from "lucide-react"
+import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle, Search } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { Pagination } from "@/components/ui/pagination"
+import { useDebounce } from "@/hooks/useDebounce"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
 const COLORS = ["#4F8EF7", "#36B37E", "#FFB648", "#F45D5D", "#8B5CF6", "#EC4899"]
@@ -40,12 +42,30 @@ export default function AccountingPage() {
   const { data: expensesData } = useQuery({ queryKey: ["expenses"], queryFn: () => api.get<any>("/expenses") })
   const { data: paymentsData } = useQuery({ queryKey: ["payments"], queryFn: () => api.get<any>("/payments") })
   const { data: cashFlowData } = useQuery({ queryKey: ["cash-flow"], queryFn: () => api.get<any>("/cash-flow?months=12") })
-  const { data: workOrdersData } = useQuery({ queryKey: ["accounting-work-orders"], queryFn: () => api.get<any>("/work-orders?limit=200&includePayments=true") })
+
+  const [woSearch, setWoSearch] = useState("")
+  const [woPage, setWoPage] = useState(1)
+  const debouncedWoSearch = useDebounce(woSearch, 300)
+  const [woResult, setWoResult] = useState<{ workOrders: any[]; total: number; totalPages: number; page: number }>({ workOrders: [], total: 0, totalPages: 1, page: 1 })
+
+  const { data: workOrdersData, isLoading: woLoading } = useQuery({
+    queryKey: ["accounting-work-orders", woPage, debouncedWoSearch],
+    placeholderData: keepPreviousData,
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: "15", page: String(woPage), includePayments: "true" })
+      if (debouncedWoSearch) params.set("search", debouncedWoSearch)
+      const res = await api.get<any>(`/work-orders?${params.toString()}`)
+      setWoResult({ workOrders: res.workOrders || [], total: res.total || 0, totalPages: res.totalPages || 1, page: res.page || 1 })
+      return res
+    },
+  })
+  const { data: allWorkOrdersData } = useQuery({ queryKey: ["accounting-work-orders-summary"], queryFn: () => api.get<any>("/work-orders?limit=200") })
 
   const kpis = analytics?.kpis || {}
   const expenses = expensesData?.expenses || []
   const payments = paymentsData?.payments || []
-  const workOrders = workOrdersData?.workOrders || []
+  const workOrders = workOrdersData?.workOrders || (woResult.workOrders || [])
+  const allWorkOrders = allWorkOrdersData?.workOrders || []
 
   const [paymentModal, setPaymentModal] = useState<{ workOrderId: string; workOrderNumber: string; customerName: string } | null>(null)
   const [payForm, setPayForm] = useState({ amount: "", method: "CASH", reference: "", notes: "" })
@@ -56,7 +76,7 @@ export default function AccountingPage() {
     onSuccess: () => {
       toast.success("Payment recorded")
       setPaymentModal(null)
-setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
+      setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
       queryClient.invalidateQueries({ queryKey: ["accounting-work-orders"] })
       queryClient.invalidateQueries({ queryKey: ["analytics"] })
       queryClient.invalidateQueries({ queryKey: ["payments"] })
@@ -283,7 +303,7 @@ setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
                   <div>
                     <p className="text-sm text-gray-500">Total Payments Received</p>
                     <p className="text-2xl font-bold text-[#36B37E] mt-0.5">
-                      {formatCurrency(workOrders.reduce((s: number, wo: any) => s + (wo.advanceReceived || 0), 0))}
+                      {formatCurrency(allWorkOrders.reduce((s: number, wo: any) => s + (wo.advanceReceived || 0), 0))}
                     </p>
                   </div>
                 </div>
@@ -298,7 +318,7 @@ setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
                   <div>
                     <p className="text-sm text-gray-500">Total Job Value</p>
                     <p className="text-2xl font-bold text-[#4F8EF7] mt-0.5">
-                      {formatCurrency(workOrders.reduce((s: number, wo: any) => s + (wo.estimatedBudget || wo.finalPrice || 0), 0))}
+                      {formatCurrency(allWorkOrders.reduce((s: number, wo: any) => s + (wo.estimatedBudget || wo.finalPrice || 0), 0))}
                     </p>
                   </div>
                 </div>
@@ -313,7 +333,7 @@ setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
                   <div>
                     <p className="text-sm text-gray-500">Outstanding Balance</p>
                     <p className="text-2xl font-bold text-[#F45D5D] mt-0.5">
-                      {formatCurrency(workOrders.reduce((s: number, wo: any) => s + (wo.remainingAmount ?? (wo.finalPrice ? Math.max(0, wo.finalPrice - (wo.advanceReceived || 0)) : 0)), 0))}
+                      {formatCurrency(allWorkOrders.reduce((s: number, wo: any) => s + (wo.remainingAmount ?? (wo.finalPrice ? Math.max(0, wo.finalPrice - (wo.advanceReceived || 0)) : 0)), 0))}
                     </p>
                   </div>
                 </div>
@@ -323,9 +343,20 @@ setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Work Order Payments</span>
-                <p className="text-xs text-gray-400 font-normal">Click Add Payment to record cash, transfer, or cheque</p>
+              <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span>Work Order Payments</span>
+                  <span className="text-xs text-gray-400 font-normal">({woResult.total} work orders)</span>
+                </div>
+                <div className="relative w-full sm:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    value={woSearch}
+                    onChange={(e) => { setWoSearch(e.target.value); setWoPage(1) }}
+                    placeholder="Search by name, WO number, or Est No..."
+                    className="w-full h-9 pl-9 pr-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#4F8EF7]"
+                  />
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -393,6 +424,14 @@ setPayForm({ amount: "", method: "CASH", reference: "", notes: "" })
                   </tbody>
                 </table>
               </div>
+              {workOrders.length === 0 && (
+                <div className="py-12 text-center text-gray-400 text-sm">
+                  {woSearch ? `No work orders found matching "${woSearch}"` : "No work orders found"}
+                </div>
+              )}
+              {workOrders.length > 0 && (
+                <Pagination page={woResult.page} limit={15} total={woResult.total} onPageChange={setWoPage} />
+              )}
             </CardContent>
           </Card>
         </>
