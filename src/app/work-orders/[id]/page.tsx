@@ -45,6 +45,8 @@ export default function WorkOrderDetailPage() {
   const [statusOpen, setStatusOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [newAssignee, setNewAssignee] = useState("")
+  const [paymentBlockModal, setPaymentBlockModal] = useState(false)
+  const [pendingStatus, setPendingStatus] = useState("")
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
@@ -431,7 +433,17 @@ export default function WorkOrderDetailPage() {
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value)}
                   />
-                  <Button size="sm" variant="ghost" onClick={() => { statusMutation.mutate({ status: newStatus }); setNewStatus("") }}>
+                  <Button size="sm" variant="ghost" onClick={() => {
+                    const deliveryStatuses = ["READY_FOR_DELIVERY", "DELIVERED", "COMPLETED"]
+                    const fullyPaid = totalAmount <= 0 || totalPayments >= totalAmount
+                    if (deliveryStatuses.includes(newStatus) && !fullyPaid) {
+                      setPendingStatus(newStatus)
+                      setPaymentBlockModal(true)
+                      return
+                    }
+                    statusMutation.mutate({ status: newStatus })
+                    setNewStatus("")
+                  }}>
                     <Check className="h-4 w-4 text-green-500" />
                   </Button>
                 </div>
@@ -772,6 +784,35 @@ export default function WorkOrderDetailPage() {
           </Modal>
         </Card>
       )}
+
+      <Modal open={paymentBlockModal} onClose={() => setPaymentBlockModal(false)} title="Payment Required" size="md">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
+            <AlertTriangle className="h-6 w-6 text-[#F45D5D] shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Work order is not fully paid</p>
+              <p className="text-sm text-gray-600 mt-1">
+                You cannot mark this work order as {pendingStatus ? pendingStatus.replace(/_/g, " ").toLowerCase() : "ready for delivery"} until the entire amount is added in the payment section.
+              </p>
+              <p className="text-sm text-gray-600 mt-2">
+                Amount for this work order: <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span> · Paid so far:{" "}
+                <span className={`font-bold ${totalPayments >= totalAmount ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>{formatCurrency(totalPayments)}</span>
+              </p>
+              {totalAmount > totalPayments && (
+                <p className="text-sm text-[#F45D5D] font-medium mt-1">
+                  Missing: {formatCurrency(totalAmount - totalPayments)} — use "Record Payment" to add the remaining amount.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 justify-end">
+            <Button variant="outline" onClick={() => setPaymentBlockModal(false)}>Close</Button>
+            <Button onClick={() => { setPaymentBlockModal(false); setShowPaymentModal(true) }}>
+              <Plus className="h-4 w-4 mr-1" /> Record Payment
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Production Budget Only — PRODUCTION_MANAGER & INVENTORY_MANAGER */}
       {(user?.role === "PRODUCTION_MANAGER" || user?.role === "INVENTORY_MANAGER") && (
