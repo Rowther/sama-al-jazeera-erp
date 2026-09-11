@@ -93,7 +93,9 @@ export default function WorkOrdersPage() {
       </Card>
 
       <div className="grid gap-4">
-        {filtered.map((wo: any) => (
+        {filtered.map((wo: any) => {
+          const pending = wo.remainingAmount ?? Math.max(0, (wo.finalPrice || wo.estimatedBudget || 0) - (wo.advanceReceived || 0))
+          return (
           <Card key={wo.id} className="hover:shadow-md transition-all cursor-pointer" onClick={() => router.push(`/work-orders/${wo.id}`)}>
             <CardContent className="p-5">
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -120,6 +122,9 @@ export default function WorkOrdersPage() {
                   <div className="text-right shrink-0">
                     {wo.totalCost > 0 && <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(wo.totalCost)}</p>}
                     {wo.estimatedBudget > 0 && <p className="text-xs text-gray-400">Total Job Value: {formatCurrency(wo.estimatedBudget)}</p>}
+                    {(user?.role === "OWNER" || user?.role === "MANAGER") && pending > 0 && (
+                      <p className="text-sm font-bold text-[#F45D5D] mt-1">Pending: {formatCurrency(pending)}</p>
+                    )}
                   </div>
                 )}
                 {user?.role !== "OWNER" && user?.role !== "MANAGER" && user?.role !== "ACCOUNTANT" && wo.productionManagerBudget > 0 && (
@@ -130,7 +135,8 @@ export default function WorkOrdersPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
         {filtered.length === 0 && (
           <Card>
             <CardContent className="p-12 text-center text-gray-400">No work orders found</CardContent>

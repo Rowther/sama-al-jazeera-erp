@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { paymentMethodLabel, methodFromPayment } from "@/lib/payments"
 import { PaymentRecordsModal } from "@/components/work-orders/payment-records-modal"
-import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle, Search, ExternalLink } from "lucide-react"
+import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle, Search, ExternalLink, Wallet } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Pagination } from "@/components/ui/pagination"
@@ -197,26 +197,27 @@ export default function AccountingPage() {
             </Card>
           </div>
           <Card>
-            <CardHeader><CardTitle>Profit by Work Order</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Payment Records by Work Order</CardTitle></CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {(analytics?.profitByWO || []).slice(0, 10).map((wo: any, i: number) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer"
-                    onClick={() => router.push(`/work-orders/${wo.id}`)}>
+                    onClick={() => setRecordsWO(wo)}>
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${wo.profit >= 0 ? "bg-green-50" : "bg-red-50"}`}>
-                        {wo.profit >= 0 ? <TrendingUp className="h-4 w-4 text-[#36B37E]" /> : <TrendingDown className="h-4 w-4 text-[#F45D5D]" />}
+                      <div className="p-2 rounded-lg bg-blue-50 text-[#4F8EF7]">
+                        <Wallet className="h-4 w-4" />
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
-                        <p className="text-xs text-gray-400">Revenue: {formatCurrency(wo.revenue)} | Cost: {formatCurrency(wo.cost)}</p>
+                        <p className="text-xs text-gray-400">Click to view payment records</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(wo.profit)}</p>
-                    </div>
+                    <p className="text-xs font-medium text-[#4F8EF7]">View Payments</p>
                   </div>
                 ))}
+                {(analytics?.profitByWO || []).length === 0 && (
+                  <p className="text-sm text-gray-400 text-center py-8">No work order data yet</p>
+                )}
               </div>
             </CardContent>
           </Card>
