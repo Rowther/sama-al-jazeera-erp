@@ -88,12 +88,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       })
       if (!oldOrder) throw new Error("NOT_FOUND")
 
-      const deliveryStatuses = ["READY_FOR_DELIVERY", "DELIVERED", "COMPLETED"]
-      if (data.status && deliveryStatuses.includes(data.status as string) && data.status !== oldOrder.status) {
-        const jobValue = oldOrder.finalPrice ?? oldOrder.estimatedBudget ?? 0
-        const paid = oldOrder.advanceReceived || 0
-        if (jobValue > 0 && paid < jobValue) {
-          throw new Error("PAYMENT_REQUIRED")
+      if (data.status === "DELIVERED" && data.status !== oldOrder.status) {
+        const invoice = data.estimateRef ?? oldOrder.estimateRef
+        if (!invoice || !String(invoice).trim()) {
+          throw new Error("INVOICE_REQUIRED")
         }
       }
 
@@ -324,9 +322,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (error.message === "NOT_FOUND") {
         return NextResponse.json({ message: "Not found" }, { status: 404 })
       }
-      if (error.message === "PAYMENT_REQUIRED") {
+      if (error.message === "INVOICE_REQUIRED") {
         return NextResponse.json({
-          message: "This work order is not fully paid yet. Record the full payment before marking it as ready for delivery, delivered, or completed.",
+          message: "An estimate number is required to mark the work order as delivered. Please enter the estimate number and try again.",
         }, { status: 400 })
       }
       if (error.message === "Cannot mark complete without design files") {

@@ -45,8 +45,10 @@ export default function WorkOrderDetailPage() {
   const [statusOpen, setStatusOpen] = useState(false)
   const [assignOpen, setAssignOpen] = useState(false)
   const [newAssignee, setNewAssignee] = useState("")
-  const [paymentBlockModal, setPaymentBlockModal] = useState(false)
   const [pendingStatus, setPendingStatus] = useState("")
+  const [invoiceModal, setInvoiceModal] = useState(false)
+  const [invoiceDraft, setInvoiceDraft] = useState("")
+  const [paymentWarningModal, setPaymentWarningModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<any>(null)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
@@ -355,6 +357,41 @@ export default function WorkOrderDetailPage() {
   const totalAmount = wo.finalPrice || wo.estimatedBudget || 0
   const profit = totalAmount - totalExpenses
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
+  const hasPendingPayment = totalAmount > 0 && totalPayments < totalAmount
+  const missingPayment = Math.max(0, totalAmount - totalPayments)
+
+  const confirmStatusChange = (target: string) => {
+    const deliveryStatuses = ["READY_FOR_DELIVERY", "DELIVERED", "COMPLETED"]
+    if (target === "DELIVERED") {
+      setPendingStatus(target)
+      setInvoiceDraft(wo.estimateRef || "")
+      setInvoiceModal(true)
+      return
+    }
+    if (deliveryStatuses.includes(target) && hasPendingPayment) {
+      setPendingStatus(target)
+      setPaymentWarningModal(true)
+      return
+    }
+    statusMutation.mutate({ status: target })
+    setNewStatus("")
+  }
+
+  const submitStatusFromInvoice = () => {
+    if (!invoiceDraft.trim()) {
+      toast.error("Estimate number is required to mark the work order as delivered")
+      return
+    }
+    statusMutation.mutate({ status: "DELIVERED", estimateRef: invoiceDraft.trim() })
+    setInvoiceModal(false)
+    setNewStatus("")
+  }
+
+  const submitStatusFromWarning = () => {
+    statusMutation.mutate({ status: pendingStatus })
+    setPaymentWarningModal(false)
+    setNewStatus("")
+  }
 
   const estimatedMaterialCost = materials.reduce((s: number, m: any) => s + (m.estimatedCost * m.requiredQuantity), 0)
   const materialExpenseTotal = expenseRows.filter((r: any) => r.category === "MATERIAL").reduce((s: number, r: any) => s + r.amount, 0)
@@ -433,17 +470,7 @@ export default function WorkOrderDetailPage() {
                     value={newStatus}
                     onChange={(e) => setNewStatus(e.target.value)}
                   />
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    const deliveryStatuses = ["READY_FOR_DELIVERY", "DELIVERED", "COMPLETED"]
-                    const fullyPaid = totalAmount <= 0 || totalPayments >= totalAmount
-                    if (deliveryStatuses.includes(newStatus) && !fullyPaid) {
-                      setPendingStatus(newStatus)
-                      setPaymentBlockModal(true)
-                      return
-                    }
-                    statusMutation.mutate({ status: newStatus })
-                    setNewStatus("")
-                  }}>
+                  <Button size="sm" variant="ghost" onClick={() => confirmStatusChange(newStatus)}>
                     <Check className="h-4 w-4 text-green-500" />
                   </Button>
                 </div>
@@ -456,6 +483,7 @@ export default function WorkOrderDetailPage() {
             </div>
             <p className="text-sm text-gray-500 mt-1 truncate">
               {wo.customer?.name} • {wo.furnitureType || "N/A"}
+              {wo.estimateRef && <span className="ml-2 text-[#4F8EF7] font-medium">Est No #{wo.estimateRef}</span>}
               {canManage && (assignOpen ? (
                 <span className="ml-2 inline-flex items-center gap-1">
                   <Select
@@ -785,30 +813,53 @@ export default function WorkOrderDetailPage() {
         </Card>
       )}
 
-      <Modal open={paymentBlockModal} onClose={() => setPaymentBlockModal(false)} title="Payment Required" size="md">
+      <Modal open={invoiceModal} onClose={() => setInvoiceModal(false)} title="Mark as Delivered" size="md">
         <div className="space-y-4">
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-100">
-            <AlertTriangle className="h-6 w-6 text-[#F45D5D] shrink-0" />
+          {hasPendingPayment && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <AlertTriangle className="h-5 w-5 text-[#FFB648] shrink-0" />
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold text-gray-900">Payment pending:</span> {formatCurrency(totalPayments)} of{" "}
+                <span className="font-semibold text-gray-900">{formatCurrency(totalAmount)}</span> received. Missing{" "}
+                <span className="font-semibold text-[#F45D5D]">{formatCurrency(missingPayment)}</span>.
+              </p>
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Estimate Number <span className="text-[#F45D5D]">*</span>
+            </label>
+            <Input value={invoiceDraft} onChange={(e) => setInvoiceDraft(e.target.value)} placeholder="Enter estimate number (e.g. EST-0012)" />
+            <p className="text-xs text-gray-400 mt-1">The estimate number is required to mark this work order as delivered.</p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 justify-end">
+            <Button variant="outline" onClick={() => setInvoiceModal(false)}>Cancel</Button>
+            <Button onClick={submitStatusFromInvoice} disabled={!invoiceDraft.trim()}>
+              <Check className="h-4 w-4 mr-1" /> Mark as Delivered
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={paymentWarningModal} onClose={() => setPaymentWarningModal(false)} title="Payment Pending" size="md">
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+            <AlertTriangle className="h-6 w-6 text-[#FFB648] shrink-0" />
             <div>
-              <p className="text-sm font-semibold text-gray-900">Work order is not fully paid</p>
+              <p className="text-sm font-semibold text-gray-900">Payment is pending</p>
               <p className="text-sm text-gray-600 mt-1">
-                You cannot mark this work order as {pendingStatus ? pendingStatus.replace(/_/g, " ").toLowerCase() : "ready for delivery"} until the entire amount is added in the payment section.
+                Only {formatCurrency(totalPayments)} of {formatCurrency(totalAmount)} has been received for this work order.{" "}
+                {formatCurrency(missingPayment)} is still pending.
               </p>
-              <p className="text-sm text-gray-600 mt-2">
-                Amount for this work order: <span className="font-bold text-gray-900">{formatCurrency(totalAmount)}</span> · Paid so far:{" "}
-                <span className={`font-bold ${totalPayments >= totalAmount ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>{formatCurrency(totalPayments)}</span>
+              <p className="text-sm text-gray-600 mt-1">
+                You can still change the status to {pendingStatus ? pendingStatus.replace(/_/g, " ").toLowerCase() : "this status"}.
               </p>
-              {totalAmount > totalPayments && (
-                <p className="text-sm text-[#F45D5D] font-medium mt-1">
-                  Missing: {formatCurrency(totalAmount - totalPayments)} — use "Record Payment" to add the remaining amount.
-                </p>
-              )}
             </div>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 justify-end">
-            <Button variant="outline" onClick={() => setPaymentBlockModal(false)}>Close</Button>
-            <Button onClick={() => { setPaymentBlockModal(false); setShowPaymentModal(true) }}>
-              <Plus className="h-4 w-4 mr-1" /> Record Payment
+            <Button variant="outline" onClick={() => setPaymentWarningModal(false)}>Cancel</Button>
+            <Button onClick={submitStatusFromWarning}>
+              <Check className="h-4 w-4 mr-1" /> Continue Anyway
             </Button>
           </div>
         </div>

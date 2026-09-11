@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Modal } from "@/components/ui/modal"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle, Search } from "lucide-react"
+import { paymentMethodLabel, methodFromPayment } from "@/lib/payments"
+import { PaymentRecordsModal } from "@/components/work-orders/payment-records-modal"
+import { TrendingUp, TrendingDown, Download, Plus, Banknote, Landmark, FileCheck2, ArrowUpCircle, Search, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Pagination } from "@/components/ui/pagination"
@@ -24,14 +26,6 @@ const PAYMENT_METHODS = [
   { value: "BANK_TRANSFER", label: "Bank Transfer", icon: Landmark },
   { value: "CHEQUE", label: "Cheque", icon: FileCheck2 },
 ]
-
-const paymentMethodLabel = (method?: string) =>
-  PAYMENT_METHODS.find((m) => m.value === method)?.label || "Cash"
-
-const methodFromPayment = (p: any) => {
-  const match = p?.notes?.match(/Paid via (CASH|BANK_TRANSFER|CHEQUE)/)
-  return match ? match[1] : (p?.reference ? "BANK_TRANSFER" : "CASH")
-}
 
 export default function AccountingPage() {
   const router = useRouter()
@@ -68,6 +62,7 @@ export default function AccountingPage() {
   const allWorkOrders = allWorkOrdersData?.workOrders || []
 
   const [paymentModal, setPaymentModal] = useState<{ workOrderId: string; workOrderNumber: string; customerName: string } | null>(null)
+  const [recordsWO, setRecordsWO] = useState<any>(null)
   const [payForm, setPayForm] = useState({ amount: "", method: "CASH", reference: "", notes: "" })
 
   const recordPaymentMutation = useMutation({
@@ -382,11 +377,16 @@ export default function AccountingPage() {
                       return (
                         <tr key={wo.id} className="border-b border-gray-50 hover:bg-gray-50">
                           <td className="py-3 px-4">
-                            <button className="font-semibold text-[#4F8EF7] hover:underline text-left"
-                              onClick={() => router.push(`/work-orders/${wo.id}`)}>
-                              {wo.workOrderId}
-                            </button>
-                          </td>
+                              <div className="flex items-center gap-1.5">
+                                <button className="font-semibold text-[#4F8EF7] hover:underline text-left"
+                                  onClick={() => setRecordsWO(wo)} title="View payment records">
+                                  {wo.workOrderId}
+                                </button>
+                                <button onClick={() => router.push(`/work-orders/${wo.id}`)} title="Open work order" className="text-gray-300 hover:text-[#4F8EF7] transition-colors">
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
                           <td className="py-3 px-4 text-gray-700">{wo.customer?.name || "-"}</td>
                           <td className="py-3 px-4 text-gray-900">{formatCurrency(jobValue)}</td>
                           <td className="py-3 px-4 font-medium text-[#36B37E]">{formatCurrency(advance)}</td>
@@ -507,6 +507,14 @@ export default function AccountingPage() {
           </div>
         </div>
       </Modal>
+
+      <PaymentRecordsModal
+        open={!!recordsWO}
+        workOrderId={recordsWO?.id}
+        workOrderNumber={recordsWO?.workOrderId}
+        customerName={recordsWO?.customer?.name}
+        onClose={() => setRecordsWO(null)}
+      />
     </div>
   )
 }

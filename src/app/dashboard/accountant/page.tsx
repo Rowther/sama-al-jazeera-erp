@@ -10,7 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
 import { formatCurrency, formatDate } from "@/lib/utils"
-import { DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard, Receipt, ArrowRight, Download, ClipboardCheck, Filter, Search, Calendar, Package } from "lucide-react"
+import { paymentMethodLabel, methodFromPayment } from "@/lib/payments"
+import { PaymentRecordsModal } from "@/components/work-orders/payment-records-modal"
+import { DollarSign, TrendingUp, TrendingDown, Wallet, CreditCard, Receipt, ArrowRight, Download, ClipboardCheck, Filter, Search, Calendar, Package, ExternalLink } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from "recharts"
 
@@ -63,11 +65,18 @@ export default function AccountantDashboard() {
     queryFn: () => api.get<any>("/installments"),
   })
 
+  const { data: paymentOrdersData } = useQuery({
+    queryKey: ["accountant-work-order-payments"],
+    queryFn: () => api.get<any>("/work-orders?limit=100&includePayments=true"),
+  })
+
+  const [recordsWO, setRecordsWO] = useState<any>(null)
+
   const payments = paymentsData?.payments || []
   const expenses = expensesData?.expenses || []
   const workOrders = workOrdersData?.workOrders || []
+  const paymentOrders = paymentOrdersData?.workOrders || []
   const kpis = analytics?.kpis || {}
-  const profitData = analytics?.profitByWO || []
   const installments = installmentsData?.installments || []
 
   const filteredExpenses = useMemo(() => {
@@ -285,24 +294,38 @@ export default function AccountantDashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card data-tour="accountant-profit">
-          <CardHeader><CardTitle>Profit by Work Order</CardTitle></CardHeader>
+        <Card data-tour="accountant-payments">
+          <CardHeader><CardTitle>Payment Records by Work Order</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {profitData.slice(0, 8).map((wo: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.id}`)}>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
-                    <p className="text-xs text-gray-400">Revenue: {formatCurrency(wo.revenue)} | Cost: {formatCurrency(wo.cost)}</p>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {paymentOrders.slice(0, 12).map((wo: any, i: number) => {
+                const jobValue = wo.estimatedBudget || wo.finalPrice || 0
+                const paid = wo.advanceReceived || 0
+                const remaining = wo.remainingAmount ?? Math.max(0, jobValue - paid)
+                return (
+                  <div key={wo.id || i} className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setRecordsWO(wo)}>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); router.push(`/work-orders/${wo.id}`) }}
+                          className="text-gray-300 hover:text-[#4F8EF7] transition-colors" title="Open work order"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400">{wo.customer?.name || ""}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(paid)} <span className="text-xs text-gray-400 font-normal">of {formatCurrency(jobValue)}</span></p>
+                      <p className={`text-xs font-medium ${remaining > 0 ? "text-[#FFB648]" : "text-[#36B37E]"}`}>
+                        {remaining > 0 ? `${formatCurrency(remaining)} pending` : "Fully paid"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${wo.profit >= 0 ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>
-                      {wo.profit >= 0 ? "+" : ""}{formatCurrency(wo.profit)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-              {profitData.length === 0 && (
+                )
+              })}
+              {paymentOrders.length === 0 && (
                 <p className="text-sm text-gray-400 text-center py-8">No work order data yet</p>
               )}
             </div>
@@ -323,7 +346,10 @@ export default function AccountantDashboard() {
                       {p.type === "INCOME" ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{p.type} - {p.workOrder?.workOrderId || "N/A"}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-gray-900">{p.type} - {p.workOrder?.workOrderId || "N/A"}</p>
+                        <Badge className="bg-blue-50 text-[#4F8EF7]">{paymentMethodLabel(methodFromPayment(p))}</Badge>
+                      </div>
                       <p className="text-xs text-gray-400">{formatDate(p.date)}</p>
                     </div>
                   </div>
@@ -337,6 +363,14 @@ export default function AccountantDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <PaymentRecordsModal
+        open={!!recordsWO}
+        workOrderId={recordsWO?.id}
+        workOrderNumber={recordsWO?.workOrderId}
+        customerName={recordsWO?.customer?.name}
+        onClose={() => setRecordsWO(null)}
+      />
     </div>
   )
 }

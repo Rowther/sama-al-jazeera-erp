@@ -10,6 +10,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { formatCurrency, formatDate } from "@/lib/utils"
+import { PaymentRecordsModal } from "@/components/work-orders/payment-records-modal"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, AreaChart, Area, PieChart, Pie, Cell
@@ -18,7 +19,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, Package, Users, Clock,
   AlertTriangle, FileText, ShieldAlert, Activity, Wallet, CreditCard,
   Building2, Calendar, ArrowUpRight, ArrowDownRight, Eye,
-  BarChart3, Factory, UserCheck, ShoppingCart, Target, BrainCircuit
+  BarChart3, Factory, UserCheck, ShoppingCart, Target, BrainCircuit, ExternalLink
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -76,6 +77,13 @@ export default function OwnerCommandCenter() {
     queryFn: () => api.get<any>("/users"),
   })
 
+  const { data: paymentOrdersData } = useQuery({
+    queryKey: ["owner-work-order-payments"],
+    queryFn: () => api.get<any>("/work-orders?limit=100&includePayments=true"),
+  })
+
+  const [recordsWO, setRecordsWO] = useState<any>(null)
+
   useEffect(() => {
     if (analytics?.anomalies) {
       setAnomalies(analytics.anomalies)
@@ -84,6 +92,7 @@ export default function OwnerCommandCenter() {
 
   const kpis = analytics?.kpis || {}
   const profitData = analytics?.profitByWO?.slice(0, 10) || []
+  const paymentOrders = paymentOrdersData?.workOrders || []
   const activities = activitiesData?.activities || []
   const allMaterials = materialsData?.materials || []
   const allPurchases = purchasesData?.purchaseEntries || []
@@ -552,19 +561,34 @@ export default function OwnerCommandCenter() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Profit by Work Order</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Payment Records by Work Order</CardTitle></CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {profitData.slice(0, 6).map((wo: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => router.push(`/work-orders/${wo.workOrderId}`)}>
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
-                    <p className="text-xs text-gray-400">Revenue: {formatCurrency(wo.revenue)} | Cost: {formatCurrency(wo.cost)}</p>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {paymentOrders.slice(0, 8).map((wo: any, i: number) => {
+                const jobValue = wo.estimatedBudget || wo.finalPrice || 0
+                const paid = wo.advanceReceived || 0
+                const remaining = wo.remainingAmount ?? Math.max(0, jobValue - paid)
+                return (
+                  <div key={wo.id || i} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50 cursor-pointer" onClick={() => setRecordsWO(wo)}>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-sm font-medium text-gray-900">{wo.workOrderId}</p>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); router.push(`/work-orders/${wo.id}`) }}
+                        className="text-gray-300 hover:text-[#4F8EF7] transition-colors" title="Open work order"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-900">{formatCurrency(paid)} <span className="text-xs text-gray-400 font-normal">of {formatCurrency(jobValue)}</span></p>
+                      <p className={`text-xs font-medium ${remaining > 0 ? "text-[#FFB648]" : "text-[#36B37E]"}`}>
+                        {remaining > 0 ? `${formatCurrency(remaining)} pending` : "Fully paid"}
+                      </p>
+                    </div>
                   </div>
-                  <span className={`text-sm font-semibold ${wo.profit >= 0 ? "text-[#36B37E]" : "text-[#F45D5D]"}`}>{formatCurrency(wo.profit)}</span>
-                </div>
-              ))}
-              {profitData.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No data yet</p>}
+                )
+              })}
+              {paymentOrders.length === 0 && <p className="text-sm text-gray-400 text-center py-8">No data yet</p>}
             </div>
           </CardContent>
         </Card>
@@ -688,6 +712,14 @@ export default function OwnerCommandCenter() {
       </div>
 
       {activeTab === "overview" ? renderOverviewTab() : renderAnalyticsTab()}
+
+      <PaymentRecordsModal
+        open={!!recordsWO}
+        workOrderId={recordsWO?.id}
+        workOrderNumber={recordsWO?.workOrderId}
+        customerName={recordsWO?.customer?.name}
+        onClose={() => setRecordsWO(null)}
+      />
     </div>
   )
 }
