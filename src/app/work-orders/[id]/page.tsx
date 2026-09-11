@@ -23,6 +23,7 @@ import {
 import { useAuthStore } from "@/stores/authStore"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { WORK_ORDER_STATUSES, PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
+import { paymentRecordsFromWorkOrder } from "@/lib/payments"
 import { ProductionTracking } from "@/components/work-orders/production-tracking"
 import { DigitalSignaturePanel } from "@/components/work-orders/digital-signature"
 
@@ -256,6 +257,9 @@ export default function WorkOrderDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["analytics"] })
       queryClient.invalidateQueries({ queryKey: ["payments"] })
       queryClient.invalidateQueries({ queryKey: ["installments"] })
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["accountant-work-order-payments"] })
+      queryClient.invalidateQueries({ queryKey: ["owner-work-order-payments"] })
     },
     onError: (err: any) => toast.error(err.message),
   })
@@ -353,7 +357,7 @@ export default function WorkOrderDetailPage() {
   const expenseRows = [...materialExpenseRows, ...otherExpenseRows]
   const totalExpenses = expenseRows.reduce((s: number, r: any) => s + r.amount, 0)
   const totalFromInstallments = (wo.installments || []).reduce((s: number, i: any) => s + i.amount, 0)
-  const totalPayments = totalFromInstallments || wo.advanceReceived || 0
+  const totalPayments = wo.advanceReceived || totalFromInstallments || 0
   const totalAmount = wo.finalPrice || wo.estimatedBudget || 0
   const profit = totalAmount - totalExpenses
   const budgetUsage = wo.estimatedBudget ? ((totalExpenses / wo.estimatedBudget) * 100).toFixed(0) : 0
@@ -783,16 +787,17 @@ export default function WorkOrderDetailPage() {
               </div>
 
               <div className="space-y-2 max-h-60 overflow-y-auto">
-                {(wo.installments || []).length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">No installment payments recorded</p>
+                {paymentRecordsFromWorkOrder(wo).length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">No payments recorded</p>
                 ) : (
-                  (wo.installments || []).map((inst: any) => (
-                    <div key={inst.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+                  paymentRecordsFromWorkOrder(wo).map((record: any, i: number) => (
+                    <div key={record.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{formatCurrency(inst.amount)}</p>
-                        {inst.notes && <p className="text-xs text-gray-400">{inst.notes}</p>}
+                        <p className="text-xs font-semibold text-gray-400">Payment {i + 1}{record.type === "ADVANCE" ? " · Advance" : ""}</p>
+                        <p className="text-sm font-medium text-gray-900">{formatCurrency(record.amount)}</p>
+                        {record.notes && <p className="text-xs text-gray-400">{record.notes}</p>}
                       </div>
-                      <span className="text-xs text-gray-400">{formatDate(inst.date || inst.createdAt)}</span>
+                      <span className="text-xs text-gray-400">{formatDate(record.date || record.createdAt)}</span>
                     </div>
                   ))
                 )}
