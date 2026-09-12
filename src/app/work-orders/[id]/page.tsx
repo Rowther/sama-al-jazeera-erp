@@ -18,12 +18,14 @@ import { useRouter, useParams } from "next/navigation"
 import {
   ArrowLeft, DollarSign, Package, Users, Clock, FileText,
   TrendingUp, TrendingDown, AlertTriangle, Download, Edit, MessageSquare, Check, X, Plus,
-  ShoppingCart, ClipboardList, Truck, Upload, Search, Eye, PackagePlus, BarChart3
+  ShoppingCart, ClipboardList, Truck, Upload, Search, Eye, PackagePlus, BarChart3,
+  Pencil, Trash2, Lock
 } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { WORK_ORDER_STATUSES, PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
-import { paymentRecordsFromWorkOrder } from "@/lib/payments"
+import { paymentRecordsFromWorkOrder, methodFromPayment } from "@/lib/payments"
+import { paymentMethodLabel } from "@/lib/payments"
 import { ProductionTracking } from "@/components/work-orders/production-tracking"
 import { DigitalSignaturePanel } from "@/components/work-orders/digital-signature"
 
@@ -54,6 +56,11 @@ export default function WorkOrderDetailPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [paymentAmount, setPaymentAmount] = useState("")
   const [paymentNotes, setPaymentNotes] = useState("")
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
+  const [editPaymentAmount, setEditPaymentAmount] = useState("")
+  const [editPaymentNotes, setEditPaymentNotes] = useState("")
+  const [editPaymentReference, setEditPaymentReference] = useState("")
+  const [deletePaymentRecord, setDeletePaymentRecord] = useState<any>(null)
 
   const { data: usersData } = useQuery({
     queryKey: ["users"],
@@ -252,6 +259,41 @@ export default function WorkOrderDetailPage() {
       setShowPaymentModal(false)
       setPaymentAmount("")
       setPaymentNotes("")
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+      queryClient.invalidateQueries({ queryKey: ["accounting-work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      queryClient.invalidateQueries({ queryKey: ["payments"] })
+      queryClient.invalidateQueries({ queryKey: ["installments"] })
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["accountant-work-order-payments"] })
+      queryClient.invalidateQueries({ queryKey: ["owner-work-order-payments"] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const editPaymentMutation = useMutation({
+    mutationFn: (data: { id: string; amount: number; notes?: string; reference?: string }) =>
+      api.patch(`/payments/${data.id}`, { amount: data.amount, notes: data.notes, reference: data.reference }),
+    onSuccess: () => {
+      toast.success("Payment updated")
+      setEditingPaymentId(null)
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+      queryClient.invalidateQueries({ queryKey: ["accounting-work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics"] })
+      queryClient.invalidateQueries({ queryKey: ["payments"] })
+      queryClient.invalidateQueries({ queryKey: ["installments"] })
+      queryClient.invalidateQueries({ queryKey: ["work-orders"] })
+      queryClient.invalidateQueries({ queryKey: ["accountant-work-order-payments"] })
+      queryClient.invalidateQueries({ queryKey: ["owner-work-order-payments"] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/payments/${id}`),
+    onSuccess: () => {
+      toast.success("Payment deleted")
+      setDeletePaymentRecord(null)
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
       queryClient.invalidateQueries({ queryKey: ["accounting-work-orders"] })
       queryClient.invalidateQueries({ queryKey: ["analytics"] })
@@ -790,16 +832,86 @@ export default function WorkOrderDetailPage() {
                 {paymentRecordsFromWorkOrder(wo).length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-4">No payments recorded</p>
                 ) : (
-                  paymentRecordsFromWorkOrder(wo).map((record: any, i: number) => (
-                    <div key={record.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-400">Payment {i + 1}{record.type === "ADVANCE" ? " · Advance" : ""}</p>
-                        <p className="text-sm font-medium text-gray-900">{formatCurrency(record.amount)}</p>
-                        {record.notes && <p className="text-xs text-gray-400">{record.notes}</p>}
+                  paymentRecordsFromWorkOrder(wo).map((record: any, i: number) => {
+                    const method = methodFromPayment(record)
+                    const isInitialAdvance = record.id === "initial-advance"
+
+                    if (editingPaymentId === record.id) {
+                      return (
+                        <div key={record.id} className="p-3 rounded-lg bg-white border border-blue-200">
+                          <p className="text-xs font-semibold text-gray-400 mb-2">Edit Payment {i + 1}</p>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Input type="number" value={editPaymentAmount} onChange={(e) => setEditPaymentAmount(e.target.value)} placeholder="Amount" />
+                              <Input value={editPaymentNotes} onChange={(e) => setEditPaymentNotes(e.target.value)} placeholder="Note" />
+                            </div>
+                            {method !== "CASH" && (
+                              <Input value={editPaymentReference} onChange={(e) => setEditPaymentReference(e.target.value)} placeholder="Reference number" />
+                            )}
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => setEditingPaymentId(null)}>Cancel</Button>
+                              <Button
+                                size="sm"
+                                disabled={editPaymentMutation.isPending || !editPaymentAmount}
+                                onClick={() =>
+                                  editPaymentMutation.mutate({
+                                    id: record.id,
+                                    amount: parseFloat(editPaymentAmount),
+                                    notes: editPaymentNotes || undefined,
+                                    reference: method !== "CASH" && editPaymentReference ? editPaymentReference : undefined,
+                                  })
+                                }
+                              >
+                                Save
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    }
+
+                    return (
+                      <div key={record.id} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-gray-50">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-semibold text-gray-400">Payment {i + 1}</p>
+                            <Badge className="bg-white text-[#4F8EF7] border border-blue-100">{paymentMethodLabel(method)}</Badge>
+                            {isInitialAdvance && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-gray-400"><Lock className="h-3 w-3" /> Advance</span>
+                            )}
+                          </div>
+                          <p className="text-sm font-medium text-gray-900">{formatCurrency(record.amount)}</p>
+                          {record.notes && <p className="text-xs text-gray-400">{record.notes}</p>}
+                        </div>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className="text-xs text-gray-400">{formatDate(record.date || record.createdAt)}</span>
+                          {!isInitialAdvance && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setEditingPaymentId(record.id)
+                                  setEditPaymentAmount(String(record.amount))
+                                  setEditPaymentNotes(record.notes ? record.notes.replace(/\s*\(Paid via .*\)?$/, "") : "")
+                                  setEditPaymentReference(record.reference || "")
+                                }}
+                                className="h-6 w-6 rounded-md hover:bg-blue-50 text-[#4F8EF7] flex items-center justify-center"
+                                title="Edit"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => setDeletePaymentRecord(record)}
+                                className="h-6 w-6 rounded-md hover:bg-red-50 text-[#F45D5D] flex items-center justify-center"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-400">{formatDate(record.date || record.createdAt)}</span>
-                    </div>
-                  ))
+                    )
+                  })
                 )}
               </div>
 
@@ -815,6 +927,16 @@ export default function WorkOrderDetailPage() {
               </div>
             </div>
           </Modal>
+
+          <ConfirmDialog
+            open={!!deletePaymentRecord}
+            onClose={() => setDeletePaymentRecord(null)}
+            onConfirm={() => deletePaymentMutation.mutate(deletePaymentRecord.id)}
+            title="Delete Payment"
+            description={`Do you really want to delete this payment of ${deletePaymentRecord ? formatCurrency(deletePaymentRecord.amount) : ""}? This will also remove the matching installment and reduce the paid total.`}
+            confirmLabel="Delete"
+            loading={deletePaymentMutation.isPending}
+          />
         </Card>
       )}
 
