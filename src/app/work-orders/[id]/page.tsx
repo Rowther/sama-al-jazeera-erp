@@ -410,7 +410,7 @@ export default function WorkOrderDetailPage() {
     const deliveryStatuses = ["READY_FOR_DELIVERY", "DELIVERED", "COMPLETED"]
     if (target === "DELIVERED") {
       setPendingStatus(target)
-      setInvoiceDraft(wo.estimateRef || "")
+      setInvoiceDraft(wo.taxInvoiceNumber || "")
       setInvoiceModal(true)
       return
     }
@@ -425,10 +425,10 @@ export default function WorkOrderDetailPage() {
 
   const submitStatusFromInvoice = () => {
     if (!invoiceDraft.trim()) {
-      toast.error("Estimate number is required to mark the work order as delivered")
+      toast.error("Tax invoice number is required to mark the work order as delivered")
       return
     }
-    statusMutation.mutate({ status: "DELIVERED", estimateRef: invoiceDraft.trim() })
+    statusMutation.mutate({ status: "DELIVERED", taxInvoiceNumber: invoiceDraft.trim() })
     setInvoiceModal(false)
     setNewStatus("")
   }
@@ -529,7 +529,7 @@ export default function WorkOrderDetailPage() {
             </div>
             <p className="text-sm text-gray-500 mt-1 truncate">
               {wo.customer?.name} • {wo.furnitureType || "N/A"}
-              {wo.estimateRef && <span className="ml-2 text-[#4F8EF7] font-medium">Est No #{wo.estimateRef}</span>}
+              {wo.taxInvoiceNumber && <span className="ml-2 text-[#4F8EF7] font-medium">Invoice No #{wo.taxInvoiceNumber}</span>}
               {canManage && (assignOpen ? (
                 <span className="ml-2 inline-flex items-center gap-1">
                   <Select
@@ -954,10 +954,10 @@ export default function WorkOrderDetailPage() {
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Estimate Number <span className="text-[#F45D5D]">*</span>
+              Tax Invoice Number <span className="text-[#F45D5D]">*</span>
             </label>
-            <Input value={invoiceDraft} onChange={(e) => setInvoiceDraft(e.target.value)} placeholder="Enter estimate number (e.g. EST-0012)" />
-            <p className="text-xs text-gray-400 mt-1">The estimate number is required to mark this work order as delivered.</p>
+            <Input value={invoiceDraft} onChange={(e) => setInvoiceDraft(e.target.value)} placeholder="Enter tax invoice number (e.g. INV-2026-0142)" />
+            <p className="text-xs text-gray-400 mt-1">The tax invoice number is required to mark this work order as delivered.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 justify-end">
             <Button variant="outline" onClick={() => setInvoiceModal(false)}>Cancel</Button>

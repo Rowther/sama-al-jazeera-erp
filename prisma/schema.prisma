@@ -409,6 +409,7 @@ model WorkOrder {
   companyName     String?
   companyContact  String?
   estimateRef     String?
+  taxInvoiceNumber String?
   notes           String?
   estimatedBudget Float?
   productionManagerBudget Float?

@@ -89,7 +89,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       if (!oldOrder) throw new Error("NOT_FOUND")
 
       if (data.status === "DELIVERED" && data.status !== oldOrder.status) {
-        const invoice = data.estimateRef ?? oldOrder.estimateRef
+        const invoice = data.taxInvoiceNumber ?? oldOrder.taxInvoiceNumber
         if (!invoice || !String(invoice).trim()) {
           throw new Error("INVOICE_REQUIRED")
         }
@@ -101,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         "finalPrice", "remainingAmount",
         "productionManagerBudgetApproved",
         "productionManagerBudgetApprovedById",
-        "companyName", "companyContact", "estimateRef",
+        "companyName", "companyContact", "estimateRef", "taxInvoiceNumber",
       ]
       const updateData: Record<string, unknown> = {}
       for (const key of allowedFields) {
@@ -324,7 +324,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
       if (error.message === "INVOICE_REQUIRED") {
         return NextResponse.json({
-          message: "An estimate number is required to mark the work order as delivered. Please enter the estimate number and try again.",
+          message: "A tax invoice number is required to mark the work order as delivered. Please enter the tax invoice number and try again.",
         }, { status: 400 })
       }
       if (error.message === "Cannot mark complete without design files") {
