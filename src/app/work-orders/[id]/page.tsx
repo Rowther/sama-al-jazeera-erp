@@ -416,6 +416,7 @@ export default function WorkOrderDetailPage() {
     }
     if (deliveryStatuses.includes(target) && hasPendingPayment) {
       setPendingStatus(target)
+      setInvoiceDraft(wo.taxInvoiceNumber || "")
       setPaymentWarningModal(true)
       return
     }
@@ -434,7 +435,10 @@ export default function WorkOrderDetailPage() {
   }
 
   const submitStatusFromWarning = () => {
-    statusMutation.mutate({ status: pendingStatus })
+    statusMutation.mutate({
+      status: pendingStatus,
+      ...(invoiceDraft.trim() ? { taxInvoiceNumber: invoiceDraft.trim() } : {}),
+    })
     setPaymentWarningModal(false)
     setNewStatus("")
   }
@@ -982,6 +986,13 @@ export default function WorkOrderDetailPage() {
                 You can still change the status to {pendingStatus ? pendingStatus.replace(/_/g, " ").toLowerCase() : "this status"}.
               </p>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Tax Invoice Number
+            </label>
+            <Input value={invoiceDraft} onChange={(e) => setInvoiceDraft(e.target.value)} placeholder="Enter tax invoice number (e.g. INV-2026-0142)" />
+            <p className="text-xs text-gray-400 mt-1">Optional — you can add the tax invoice number now or later.</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-2 justify-end">
             <Button variant="outline" onClick={() => setPaymentWarningModal(false)}>Cancel</Button>
