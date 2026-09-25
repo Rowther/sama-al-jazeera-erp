@@ -155,6 +155,10 @@ export default function NewWorkOrderPage() {
       setError("Every item must have a name")
       return
     }
+    if (items.some((i) => !i.description.trim())) {
+      setError("Every item must have a description")
+      return
+    }
     if (!form.estimatedBudget || Number(form.estimatedBudget) <= 0) {
       setError("Total Job Value is required")
       return
@@ -406,6 +410,16 @@ export default function NewWorkOrderPage() {
                         </div>
                       </div>
 
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500">Description <span className="text-[#F45D5D]">*</span></label>
+                      <Textarea
+                        value={item.description}
+                        onChange={(e) => updateItem(i, "description", e.target.value)}
+                        placeholder="Describe the item, materials, finish, size, etc."
+                        rows={2}
+                      />
                     </div>
 
                     <div className="flex items-center gap-3">

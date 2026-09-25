@@ -412,6 +412,16 @@ export default function EditWorkOrderPage() {
 
                     </div>
 
+                    <div className="space-y-1">
+                      <label className="text-xs text-gray-500">Description</label>
+                      <Textarea
+                        value={item.description}
+                        onChange={(e) => updateItem(i, "description", e.target.value)}
+                        placeholder="Describe the item, materials, finish, size, etc."
+                        rows={2}
+                      />
+                    </div>
+
                     <div className="flex items-center gap-3">
                       {item.image ? (
                         <div className="relative group">

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar } from "@/components/ui/avatar"
 import { Progress } from "@/components/ui/progress"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 import { Select } from "@/components/ui/select"
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/utils"
 import { useRouter, useParams } from "next/navigation"
@@ -19,7 +20,7 @@ import {
   ArrowLeft, DollarSign, Package, Users, Clock, FileText,
   TrendingUp, TrendingDown, AlertTriangle, Download, Edit, MessageSquare, Check, X, Plus,
   ShoppingCart, ClipboardList, Truck, Upload, Search, Eye, PackagePlus, BarChart3,
-  Pencil, Trash2, Lock
+  Pencil, Trash2, Lock, ChevronDown
 } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
@@ -104,7 +105,9 @@ export default function WorkOrderDetailPage() {
   const [newItemQty, setNewItemQty] = useState(1)
   const [newItemDimensions, setNewItemDimensions] = useState("")
   const [newItemNotes, setNewItemNotes] = useState("")
+  const [newItemDescription, setNewItemDescription] = useState("")
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null)
   const [editItemName, setEditItemName] = useState("")
   const [editItemQty, setEditItemQty] = useState(1)
 
@@ -117,6 +120,7 @@ export default function WorkOrderDetailPage() {
       setNewItemQty(1)
       setNewItemDimensions("")
       setNewItemNotes("")
+      setNewItemDescription("")
       queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
     },
     onError: (err: any) => toast.error(err.message),
@@ -1123,13 +1127,20 @@ export default function WorkOrderDetailPage() {
               {wo.description && <div><p className="text-xs text-gray-400">Description</p><p className="text-sm text-gray-700 mt-1">{wo.description}</p></div>}
               {wo.dimensions && <div><p className="text-xs text-gray-400">Dimensions</p><p className="text-sm text-gray-700 mt-1">{wo.dimensions}</p></div>}
               {wo.items && wo.items.length > 0 && (
-                <div><p className="text-xs text-gray-400">Items</p>
-                  <div className="mt-1 space-y-1">
+                <div>
+                  <p className="text-xs text-gray-400">Items</p>
+                  <div className="mt-2 space-y-2">
                     {wo.items.map((item: any, i: number) => (
-                      <div key={i} className="text-sm text-gray-700 flex gap-2">
-                        <span className="font-medium">{item.name}</span>
-                        <span className="text-gray-400">x{item.quantity}</span>
-                        {item.dimensions && <span className="text-gray-400">({item.dimensions})</span>}
+                      <div key={i} className="p-3 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#4F8EF7]/10 text-[#4F8EF7] font-medium shrink-0">×{item.quantity}</span>
+                        </div>
+                        {item.description && <p className="text-xs text-gray-600 leading-relaxed">{item.description}</p>}
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1.5">
+                          {item.dimensions && <span className="text-xs text-gray-400">Dimensions: {item.dimensions}</span>}
+                          {item.notes && <span className="text-xs text-gray-400">{item.notes}</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -1147,6 +1158,7 @@ export default function WorkOrderDetailPage() {
                 {showAddItem && (
                   <div className="mb-3 p-3 rounded-xl bg-[#EEF4FF] border border-[#4F8EF7]/20 space-y-2">
                     <Input value={newItemName} onChange={(e) => setNewItemName(e.target.value)} placeholder="Item name *" />
+                    <Textarea value={newItemDescription} onChange={(e) => setNewItemDescription(e.target.value)} placeholder="Item description" rows={2} />
                     <div className="flex gap-2">
                       <Input type="number" min={1} value={newItemQty} onChange={(e) => setNewItemQty(parseInt(e.target.value) || 1)} placeholder="Qty" className="w-20" />
                       <Input value={newItemDimensions} onChange={(e) => setNewItemDimensions(e.target.value)} placeholder="Dimensions (optional)" className="flex-1" />
@@ -1154,7 +1166,7 @@ export default function WorkOrderDetailPage() {
                     <Input value={newItemNotes} onChange={(e) => setNewItemNotes(e.target.value)} placeholder="Notes (optional)" />
                     <div className="flex justify-end gap-2">
                       <Button size="sm" variant="ghost" onClick={() => setShowAddItem(false)}>Cancel</Button>
-                      <Button size="sm" onClick={() => addItemMutation.mutate({ name: newItemName, quantity: newItemQty, dimensions: newItemDimensions || undefined, notes: newItemNotes || undefined })} disabled={addItemMutation.isPending || !newItemName.trim()}>
+                      <Button size="sm" onClick={() => addItemMutation.mutate({ name: newItemName, quantity: newItemQty, dimensions: newItemDimensions || undefined, notes: newItemNotes || undefined, description: newItemDescription || undefined })} disabled={addItemMutation.isPending || !newItemName.trim()}>
                         <Plus className="h-3 w-3 mr-1" /> {addItemMutation.isPending ? "Adding..." : "Add"}
                       </Button>
                     </div>
@@ -1162,46 +1174,67 @@ export default function WorkOrderDetailPage() {
                 )}
                 <div className="space-y-2">
                   {(wo.workOrderItems || []).map((item: any) => (
-                    <div key={item.id}>
+                    <div key={item.id} className="rounded-xl bg-gray-50 border border-gray-100">
                       {editingItemId === item.id ? (
-                        <div className="flex items-center gap-2 p-2 rounded-lg bg-gray-50">
+                        <div className="flex items-center gap-2 p-2 rounded-xl">
                           <Input value={editItemName} onChange={(e) => setEditItemName(e.target.value)} className="flex-1" />
                           <Input type="number" min={1} value={editItemQty} onChange={(e) => setEditItemQty(parseInt(e.target.value) || 1)} className="w-16" />
                           <Button size="sm" variant="success" onClick={() => updateItemMutation.mutate({ itemId: item.id, name: editItemName, quantity: editItemQty })}><Check className="h-3 w-3" /></Button>
                           <Button size="sm" variant="ghost" onClick={() => setEditingItemId(null)}><X className="h-3 w-3" /></Button>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-3 p-2 rounded-lg bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors group">
-                          <div className="flex-1 min-w-0" onClick={() => setSelectedItem(item)}>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-gray-900">{item.name}</span>
-                              <span className="text-xs text-gray-400">×{item.quantity}</span>
+                        <>
+                          <div
+                            className="flex items-center gap-3 p-2 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors"
+                            onClick={() => setExpandedItemId(expandedItemId === item.id ? null : item.id)}
+                          >
+                            <div className="flex-1 min-w-0" title="Click to expand">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="text-sm font-medium text-gray-900 hover:text-[#4F8EF7] transition-colors cursor-pointer"
+                                  onClick={(e) => { e.stopPropagation(); setSelectedItem(item) }}
+                                >
+                                  {item.name}
+                                </span>
+                                <span className="text-xs text-gray-500">×{item.quantity}</span>
+                              </div>
                             </div>
-                            {item.description && (
-                              <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
+                            <div className="w-24">
+                              <Progress value={item.progress} className="h-1.5" />
+                            </div>
+                            <span className="text-xs text-gray-500 w-8 text-right">{item.progress}%</span>
+                            <StatusBadge status={item.status} />
+                            {item.isDelayed && (
+                              <span className="text-xs text-red-500 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> {item.delayDays}d
+                              </span>
+                            )}
+                            <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform shrink-0 ${expandedItemId === item.id ? "rotate-180" : ""}`} />
+                            {canManage && (
+                              <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemName(item.name); setEditItemQty(item.quantity) }}>
+                                  <Edit className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setConfirmAction({ message: "Remove this item?", onConfirm: () => deleteItemMutation.mutate(item.id) })}>
+                                  <X className="h-3 w-3 text-red-400" />
+                                </Button>
+                              </div>
                             )}
                           </div>
-                          <div className="w-24">
-                            <Progress value={item.progress} className="h-1.5" />
-                          </div>
-                          <span className="text-xs text-gray-500 w-8 text-right">{item.progress}%</span>
-                          <StatusBadge status={item.status} />
-                          {item.isDelayed && (
-                            <span className="text-xs text-red-500 flex items-center gap-1">
-                              <AlertTriangle className="h-3 w-3" /> {item.delayDays}d
-                            </span>
-                          )}
-                          {canManage && (
-                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemName(item.name); setEditItemQty(item.quantity) }}>
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setConfirmAction({ message: "Remove this item?", onConfirm: () => deleteItemMutation.mutate(item.id) })}>
-                                <X className="h-3 w-3 text-red-400" />
-                              </Button>
+                          {expandedItemId === item.id && (
+                            <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+                              {item.description ? (
+                                <p className="text-xs text-gray-600 leading-relaxed">{item.description}</p>
+                              ) : (
+                                <p className="text-xs text-gray-400 italic">No description provided</p>
+                              )}
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                                {item.dimensions && <span className="text-xs text-gray-400">Dimensions: {item.dimensions}</span>}
+                                {item.notes && <span className="text-xs text-gray-400">{item.notes}</span>}
+                              </div>
                             </div>
                           )}
-                        </div>
+                        </>
                       )}
                     </div>
                   ))}
