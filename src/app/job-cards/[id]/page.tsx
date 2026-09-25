@@ -16,11 +16,9 @@ import { useAuthStore } from "@/stores/authStore"
 import { toast } from "sonner"
 import { useState, useCallback, useRef, useEffect } from "react"
 import {
-  ArrowLeft, FileText, Package, Users, Clock, CheckCircle2, XCircle,
-  Printer, Download, UserCheck, Building2, Ruler, Paintbrush, Wrench,
-  Settings, Palette, Sparkles, Sofa, Hammer, ShieldCheck, Truck,
-  ChevronRight,   AlertTriangle, DollarSign, Calendar, ClipboardList,
-  Image, ShoppingCart, Circle, CheckSquare, UserPlus, Edit
+  ArrowLeft, FileText, Package, Users, CheckCircle2,
+  Printer, UserCheck, Settings, ShieldCheck, Truck,
+  AlertTriangle, DollarSign, ClipboardList, Circle
 } from "lucide-react"
 
 const CHECKLIST_ITEMS = [
@@ -41,17 +39,6 @@ const APPROVAL_SECTIONS = [
   { key: "manager", label: "Manager", icon: UserCheck, color: "bg-indigo-50 border-indigo-200" },
 ]
 
-const PRODUCTION_STAGES_CONFIG = [
-  { name: "Cutting", icon: "✂️" },
-  { name: "Assembly", icon: "🔧" },
-  { name: "Sanding", icon: "🪵" },
-  { name: "Painting", icon: "🎨" },
-  { name: "Polishing", icon: "✨" },
-  { name: "Upholstery", icon: "🛋️" },
-  { name: "Installation", icon: "🔨" },
-  { name: "Quality Check", icon: "✅" },
-]
-
 export default function EnhancedJobCardPage() {
   const params = useParams()
   const router = useRouter()
@@ -63,12 +50,7 @@ export default function EnhancedJobCardPage() {
     queryFn: () => api.get<any>(`/work-orders/${params.id}/job-card`),
   })
 
-  const [showChecklistModal, setShowChecklistModal] = useState(false)
   const [showApprovalModal, setShowApprovalModal] = useState<string | null>(null)
-  const [showProductionModal, setShowProductionModal] = useState(false)
-  const [editProductionNotes, setEditProductionNotes] = useState("")
-  const [editDelayNotes, setEditDelayNotes] = useState("")
-  const [editWorkerComments, setEditWorkerComments] = useState("")
 
   const jobCardMutation = useMutation({
     mutationFn: (data: any) => api.patch(`/work-orders/${params.id}/job-card`, data),
@@ -166,20 +148,11 @@ export default function EnhancedJobCardPage() {
     )
   }
 
-  const materials = wo?.materials || []
   const workers = wo?.workerAssignments || []
   const stages = wo?.productionStages || []
   const jc = jobCard || {}
 
-  const laborEntries = wo?.laborEntries || []
-  const totalLaborCost = laborEntries.reduce((s: number, e: any) => s + e.totalCost, 0)
-  const totalHours = laborEntries.reduce((s: number, e: any) => s + e.hoursWorked + e.overtimeHours, 0)
-  const uniqueWorkers = [...new Set(laborEntries.map((e: any) => e.worker.id))].length
-  const avgRate = totalHours > 0 ? totalLaborCost / totalHours : 0
-
   const completedStages = stages.filter((s: any) => s.status === "COMPLETED")
-  const activeStages = stages.filter((s: any) => s.status === "IN_PROGRESS")
-  const delayedStages = stages.filter((s: any) => s.isDelayed)
 
   const handleChecklistToggle = (key: string) => {
     jobCardMutation.mutate({ [key]: !jc[key] })
@@ -239,8 +212,10 @@ export default function EnhancedJobCardPage() {
               <p className="text-lg font-bold text-[#36B37E]">{completedChecklist}/{CHECKLIST_ITEMS.length}</p>
             </div>
             <div className="text-center p-3 rounded-xl bg-purple-50">
-              <p className="text-xs text-gray-500">Approvals</p>
-              <p className="text-lg font-bold text-[#8B5CF6]">{approvedCount}/{APPROVAL_SECTIONS.length}</p>
+              <p className="text-xs text-gray-500">Production Manager Budget</p>
+              <p className="text-lg font-bold text-[#8B5CF6]">
+                {wo?.productionManagerBudget ? formatCurrency(wo.productionManagerBudget) : "-"}
+              </p>
             </div>
             <div className="text-center p-3 rounded-xl bg-amber-50">
               <p className="text-xs text-gray-500">Progress</p>
@@ -321,12 +296,74 @@ export default function EnhancedJobCardPage() {
         </CardContent>
       </Card>
 
-      {/* SECTION 2: Pre-Production Checklist */}
+      {/* SECTION 2: Work Order Items */}
+      <Card>
+        <CardContent className="p-0">
+          <div className="bg-[#8B5CF6] text-white px-4 sm:px-6 py-3 rounded-t-2xl flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            <span className="font-semibold text-sm sm:text-base">SECTION 2: WORK ORDER ITEMS</span>
+            <Badge variant="outline" className="ml-auto text-white border-white/30">
+              {(wo?.workOrderItems || []).length} item{(wo?.workOrderItems || []).length === 1 ? "" : "s"}
+            </Badge>
+          </div>
+          <div className="p-4 sm:p-6">
+            {wo?.workOrderItems && wo.workOrderItems.length > 0 ? (
+              <div className="space-y-3">
+                {(wo.workOrderItems || []).map((item: any) => (
+                  <div key={item.id} className="rounded-xl border border-gray-100 bg-gray-50">
+                    <div className="flex items-center gap-3 p-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                          <span className="text-xs text-gray-500">×{item.quantity}</span>
+                          {item.isDelayed && (
+                            <span className="text-xs text-[#F45D5D] flex items-center gap-1">
+                              <AlertTriangle className="h-3 w-3" /> {item.delayDays}d delayed
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <StatusBadge status={item.status} />
+                          <span className="text-[10px] text-gray-400">
+                            {item.status?.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-28">
+                        <Progress value={item.progress} className="h-1.5" />
+                      </div>
+                      <span className="text-xs text-gray-500 w-10 text-right">{item.progress}%</span>
+                    </div>
+                    {(item.description || item.dimensions || item.notes) && (
+                      <div className="px-3 pb-3 pt-1 border-t border-gray-100">
+                        {item.description && (
+                          <p className="text-xs text-gray-600 leading-relaxed">{item.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-[10px] text-gray-400">
+                          {item.dimensions && <span>Dimensions: {item.dimensions}</span>}
+                          {item.notes && <span>{item.notes}</span>}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400">
+                <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">No items listed for this work order</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SECTION 3: Pre-Production Checklist */}
       <Card>
         <CardContent className="p-0">
           <div className="bg-[#36B37E] text-white px-4 sm:px-6 py-3 rounded-t-2xl flex items-center gap-2">
             <ClipboardList className="h-5 w-5" />
-            <span className="font-semibold text-sm sm:text-base">SECTION 2: PRE-PRODUCTION CHECKLIST</span>
+            <span className="font-semibold text-sm sm:text-base">SECTION 3: PRE-PRODUCTION CHECKLIST</span>
             <Badge variant="outline" className="ml-auto text-white border-white/30">{completedChecklist}/{CHECKLIST_ITEMS.length}</Badge>
           </div>
           <div className="p-4 sm:p-6">
@@ -368,298 +405,12 @@ export default function EnhancedJobCardPage() {
         </CardContent>
       </Card>
 
-      {/* SECTION 3: Material & Procurement */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="bg-[#FFB648] text-white px-4 sm:px-6 py-3 rounded-t-2xl flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            <span className="font-semibold text-sm sm:text-base">SECTION 3: MATERIAL & PROCUREMENT</span>
-          </div>
-          <div className="p-4 sm:p-6">
-            {materials.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <Package className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                <p className="text-sm">No materials listed for this work order</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b-2 border-gray-100">
-                      <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Material Description</th>
-                      <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Qty</th>
-                      <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Availability</th>
-                      <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Source Type</th>
-                      <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Supplier</th>
-                      {canViewFinance && <th className="text-left py-3 px-3 text-[10px] text-gray-500 uppercase">Cost</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materials.map((mat: any, idx: number) => (
-                      <tr key={mat.id} className={`border-b border-gray-50 ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/50"}`}>
-                        <td className="py-3 px-3 font-medium text-gray-900">{mat.materialName}</td>
-                        <td className="py-3 px-3">{mat.requiredQuantity} {mat.unit}</td>
-                        <td className="py-3 px-3">
-                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                            mat.status === "AVAILABLE" || mat.status === "APPROVED" || mat.status === "RECEIVED"
-                              ? "bg-green-100 text-green-700"
-                              : mat.status === "PARTIALLY_AVAILABLE"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : mat.status === "OUT_OF_STOCK"
-                              ? "bg-red-100 text-red-700"
-                              : mat.status === "ORDERED"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-600"
-                          }`}>
-                            {mat.status?.replace(/_/g, " ")}
-                          </span>
-                        </td>
-                        <td className="py-3 px-3">
-                          {mat.supplierPreference ? (
-                            <Badge variant={mat.supplierPreference === "LPO" ? "primary" : "default"}>
-                              {mat.supplierPreference}
-                            </Badge>
-                          ) : (
-                            <span className="text-gray-400">-</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-gray-600">{mat.supplierPreference || "-"}</td>
-                        {canViewFinance && (
-                          <td className="py-3 px-3 font-medium text-gray-900">
-                            {mat.actualCost > 0 ? formatCurrency(mat.actualCost) : mat.estimatedCost > 0 ? formatCurrency(mat.estimatedCost) : "-"}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Procurement Summary */}
-            {materials.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 rounded-xl bg-green-50 text-center">
-                  <p className="text-xs text-green-600 font-medium">Available</p>
-                  <p className="text-lg font-bold text-green-700">{materials.filter((m: any) => m.status === "AVAILABLE" || m.status === "APPROVED" || m.status === "RECEIVED").length}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-yellow-50 text-center">
-                  <p className="text-xs text-yellow-600 font-medium">Partial</p>
-                  <p className="text-lg font-bold text-yellow-700">{materials.filter((m: any) => m.status === "PARTIALLY_AVAILABLE").length}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-red-50 text-center">
-                  <p className="text-xs text-red-600 font-medium">Out of Stock</p>
-                  <p className="text-lg font-bold text-red-700">{materials.filter((m: any) => m.status === "OUT_OF_STOCK").length}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-50 text-center">
-                  <p className="text-xs text-blue-600 font-medium">Ordered</p>
-                  <p className="text-lg font-bold text-blue-700">{materials.filter((m: any) => m.status === "ORDERED").length}</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SECTION 4: Production Section */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="bg-[#8B5CF6] text-white px-4 sm:px-6 py-3 rounded-t-2xl flex items-center gap-2">
-            <Settings className="h-5 w-5" />
-            <span className="font-semibold text-sm sm:text-base">SECTION 4: PRODUCTION</span>
-            {canManage && (
-              <Button size="sm" variant="outline" className="ml-auto text-white border-white/30 hover:bg-white/20" onClick={() => setShowProductionModal(true)}>
-                <Edit className="h-3 w-3 mr-1" /> Edit Notes
-              </Button>
-            )}
-          </div>
-          <div className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-[10px] text-gray-400 uppercase">Carpenter</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {workers.find((w: any) => w.role === "CARPENTER")?.user?.name || jc?.carpenterName || "Not assigned"}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-[10px] text-gray-400 uppercase">Start Date</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {wo?.productionStartedAt ? formatDate(wo.productionStartedAt) : jc?.productionStartDate ? formatDate(jc.productionStartDate) : "-"}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-[10px] text-gray-400 uppercase">Finish Date</p>
-                <p className={`text-sm font-semibold mt-1 ${wo?.isDelayed ? "text-[#F45D5D]" : "text-gray-900"}`}>
-                  {wo?.productionCompletedAt ? formatDate(wo.productionCompletedAt) : jc?.expectedFinishDate ? formatDate(jc.expectedFinishDate) : "-"}
-                </p>
-              </div>
-              <div className="p-3 rounded-xl bg-gray-50">
-                <p className="text-[10px] text-gray-400 uppercase">Workers</p>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{workers.length} assigned</p>
-              </div>
-            </div>
-
-            {/* Labor Cost Tracking */}
-            {laborEntries.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs text-gray-500 font-medium mb-3">Labor Cost Tracking</p>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-                  <div className="p-3 rounded-xl bg-red-50">
-                    <p className="text-[10px] text-gray-400 uppercase">Total Labor Cost</p>
-                    <p className="text-lg font-bold text-[#F45D5D]">{formatCurrency(totalLaborCost)}</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-blue-50">
-                    <p className="text-[10px] text-gray-400 uppercase">Total Hours</p>
-                    <p className="text-lg font-bold text-[#4F8EF7]">{totalHours.toFixed(1)}h</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-purple-50">
-                    <p className="text-[10px] text-gray-400 uppercase">Workers</p>
-                    <p className="text-lg font-bold text-purple-600">{uniqueWorkers}</p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-amber-50">
-                    <p className="text-[10px] text-gray-400 uppercase">Avg Rate</p>
-                    <p className="text-lg font-bold text-[#FFB648]">{formatCurrency(avgRate)}/hr</p>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  {laborEntries.map((entry: any) => (
-                    <div key={entry.id} className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50">
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-7 w-7 rounded-full bg-[#F45D5D]/10 flex items-center justify-center">
-                          <span className="text-[10px] font-semibold text-[#F45D5D]">
-                            {entry.worker.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                          </span>
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">{entry.worker.name}</p>
-                          <p className="text-xs text-gray-400">
-                            {entry.hoursWorked}h × {formatCurrency(entry.hourlyRate)}/hr
-                            {entry.overtimeHours > 0 && ` + ${entry.overtimeHours}h OT`}
-                            {entry.productionStage && ` • ${entry.productionStage.stageName}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-[#F45D5D]">{formatCurrency(entry.totalCost)}</p>
-                        <p className="text-xs text-gray-400">{formatDate(entry.date)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Production Stages Visual Pipeline */}
-            {stages.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs text-gray-500 font-medium mb-3">Production Stages Pipeline</p>
-                <div className="flex items-center gap-1 overflow-x-auto pb-2 scrollbar-hide">
-                  {stages.map((s: any, i: number) => {
-                    const stageStatus = s.status
-                    const isLast = i === stages.length - 1
-                    return (
-                      <div key={s.id} className="flex items-center gap-1 flex-shrink-0">
-                        <div className={`flex flex-col items-center p-2 rounded-xl min-w-[72px] transition-all ${
-                          stageStatus === "COMPLETED" ? "bg-green-100" :
-                          stageStatus === "IN_PROGRESS" ? "bg-[#EEF4FF] ring-2 ring-[#4F8EF7]" :
-                          s.isDelayed ? "bg-red-100" :
-                          "bg-gray-50"
-                        }`}>
-                          <span className="text-lg">{PRODUCTION_STAGES_CONFIG.find(p => p.name === s.stageName)?.icon || "⚙️"}</span>
-                          <span className={`text-[9px] font-medium mt-0.5 text-center ${
-                            stageStatus === "COMPLETED" ? "text-green-700" :
-                            stageStatus === "IN_PROGRESS" ? "text-[#4F8EF7]" :
-                            s.isDelayed ? "text-[#F45D5D]" :
-                            "text-gray-400"
-                          }`}>{s.stageName}</span>
-                          {s.completionPercentage > 0 && (
-                            <span className="text-[8px] text-gray-500">{s.completionPercentage}%</span>
-                          )}
-                        </div>
-                        {!isLast && (
-                          <ChevronRight className={`h-3 w-3 ${stageStatus === "COMPLETED" ? "text-green-500" : "text-gray-300"}`} />
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Workers List */}
-            {workers.length > 0 && (
-              <div className="mb-4">
-                <p className="text-xs text-gray-500 font-medium mb-2">Assigned Workers</p>
-                <div className="flex flex-wrap gap-2">
-                  {workers.map((w: any) => (
-                    <div key={w.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 text-xs font-medium text-gray-700">
-                      <div className="h-5 w-5 rounded-full bg-[#4F8EF7]/10 flex items-center justify-center">
-                        <span className="text-[8px] font-bold text-[#4F8EF7]">
-                          {w.user?.name?.split(" ").map((n: string) => n[0]).join("").slice(0, 2)}
-                        </span>
-                      </div>
-                      {w.user?.name}
-                      <span className="text-gray-400">({w.role})</span>
-                      {w.progress > 0 && <span className="text-[#4F8EF7]">{w.progress}%</span>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Production Notes */}
-            {(jc?.productionNotes || jc?.delayNotes || jc?.workerComments) && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {jc?.productionNotes && (
-                  <div className="p-3 rounded-xl bg-gray-50">
-                    <p className="text-[10px] text-gray-400 uppercase">Production Notes</p>
-                    <p className="text-xs text-gray-700 mt-1">{jc.productionNotes}</p>
-                  </div>
-                )}
-                {jc?.delayNotes && (
-                  <div className="p-3 rounded-xl bg-red-50">
-                    <p className="text-[10px] text-red-400 uppercase">Delay Notes</p>
-                    <p className="text-xs text-red-700 mt-1">{jc.delayNotes}</p>
-                  </div>
-                )}
-                {jc?.workerComments && (
-                  <div className="p-3 rounded-xl bg-gray-50">
-                    <p className="text-[10px] text-gray-400 uppercase">Worker Comments</p>
-                    <p className="text-xs text-gray-700 mt-1">{jc.workerComments}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Production Progress */}
-            {stages.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-500">Production Progress</span>
-                  <span className="text-xs font-semibold text-[#4F8EF7]">
-                    {completedStages.length}/{stages.length} stages
-                  </span>
-                </div>
-                <Progress value={(completedStages.length / stages.length) * 100} />
-                <div className="flex items-center gap-3 mt-2 text-[10px] text-gray-400">
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-green-500" /> {completedStages.length} done</span>
-                  <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-[#4F8EF7]" /> {activeStages.length} active</span>
-                  {delayedStages.length > 0 && (
-                    <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-500" /> {delayedStages.length} delayed</span>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SECTION 5: Completion & Delivery */}
+      {/* SECTION 4: Completion & Delivery Approvals */}
       <Card>
         <CardContent className="p-0">
           <div className="bg-[#F45D5D] text-white px-4 sm:px-6 py-3 rounded-t-2xl flex items-center gap-2">
             <Truck className="h-5 w-5" />
-            <span className="font-semibold text-sm sm:text-base">SECTION 5: COMPLETION & DELIVERY APPROVALS</span>
+            <span className="font-semibold text-sm sm:text-base">SECTION 4: COMPLETION & DELIVERY APPROVALS</span>
             <Badge variant="outline" className="ml-auto text-white border-white/30">{approvedCount}/{APPROVAL_SECTIONS.length}</Badge>
           </div>
           <div className="p-4 sm:p-6">
@@ -768,49 +519,6 @@ export default function EnhancedJobCardPage() {
             </div>
           </div>
         )}
-      </Modal>
-
-      {/* Production Notes Modal */}
-      <Modal open={showProductionModal} onClose={() => setShowProductionModal(false)} title="Edit Production Notes" size="md">
-        <div className="space-y-4">
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500">Production Notes</label>
-            <textarea
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[80px]"
-              defaultValue={jc?.productionNotes || ""}
-              onChange={(e) => setEditProductionNotes(e.target.value)}
-              placeholder="Production notes..."
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500">Delay Notes</label>
-            <textarea
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[60px]"
-              defaultValue={jc?.delayNotes || ""}
-              onChange={(e) => setEditDelayNotes(e.target.value)}
-              placeholder="Any delays?"
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-gray-500">Worker Comments</label>
-            <textarea
-              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[60px]"
-              defaultValue={jc?.workerComments || ""}
-              onChange={(e) => setEditWorkerComments(e.target.value)}
-              placeholder="Worker comments..."
-            />
-          </div>
-          <Button className="w-full" onClick={() => {
-            jobCardMutation.mutate({
-              productionNotes: editProductionNotes || jc?.productionNotes,
-              delayNotes: editDelayNotes || jc?.delayNotes,
-              workerComments: editWorkerComments || jc?.workerComments,
-            })
-            setShowProductionModal(false)
-          }}>
-            Save Notes
-          </Button>
-        </div>
       </Modal>
     </div>
   )
