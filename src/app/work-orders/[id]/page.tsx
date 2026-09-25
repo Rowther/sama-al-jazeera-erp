@@ -475,9 +475,12 @@ export default function WorkOrderDetailPage() {
   const isAccountant = user?.role === "ACCOUNTANT"
   const canReviewMaterials = canManage || isAccountant
   const designerStatuses = ["DESIGN_IN_PROGRESS", "DESIGN_COMPLETED"]
+  const productionManagerStatuses = ["PRODUCTION_STARTED", "PRODUCTION_COMPLETED", "DELIVERED"]
   const statusOptions = isDesigner
     ? WORK_ORDER_STATUSES.filter((s: any) => designerStatuses.includes(s.value))
-    : WORK_ORDER_STATUSES
+    : user?.role === "PRODUCTION_MANAGER"
+      ? WORK_ORDER_STATUSES.filter((s: any) => productionManagerStatuses.includes(s.value))
+      : WORK_ORDER_STATUSES
 
   const handleDesignSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
