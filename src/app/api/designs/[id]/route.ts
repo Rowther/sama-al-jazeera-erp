@@ -9,47 +9,59 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const data = await request.json()
 
-    if (data.status === "VOID" && !["OWNER", "MANAGER", "DESIGNER"].includes(user.role)) {
-      return NextResponse.json({ message: "You are not allowed to void a design" }, { status: 403 })
+    const isVoid = data.status === "VOID"
+    const isUnvoid = data.status === "UNVOID"
+
+    if ((isVoid || isUnvoid) && !["OWNER", "MANAGER", "DESIGNER"].includes(user.role)) {
+      return NextResponse.json({ message: `You are not allowed to ${isVoid ? "void" : "restore"} a design` }, { status: 403 })
     }
 
     const result = await prisma.$transaction(async (tx) => {
       const design = await tx.design.findUnique({ where: { id: params.id } })
       if (!design) throw new Error("NOT_FOUND")
 
+      let nextStatus: string | undefined = data.status
+      if (isUnvoid) {
+        const previous = await tx.designApproval.findFirst({
+          where: { designId: params.id, status: { not: "VOID" } },
+          orderBy: { createdAt: "desc" },
+        })
+        nextStatus = previous?.status || "PENDING_REVIEW"
+      }
+
       const updated = await tx.design.update({
         where: { id: params.id },
         data: {
-          ...(data.status ? { status: data.status } : {}),
+          ...(nextStatus ? { status: nextStatus as any } : {}),
           ...(data.files ? { files: data.files } : {}),
         },
       })
 
-      if (data.status === "APPROVED") {
+      if (nextStatus === "APPROVED") {
         await tx.workOrder.update({
           where: { id: design.workOrderId },
           data: { status: "DESIGN_APPROVED" },
         })
       }
 
-      if (data.status) {
+      if (nextStatus) {
         await tx.designApproval.create({
           data: {
             designId: params.id,
             approvedById: user.userId,
-            status: data.status,
+            status: nextStatus as any,
             comments: data.comments || null,
           },
         })
       }
 
-      if (data.status === "APPROVED" || data.status === "REVISION_REQUESTED" || data.status === "REJECTED") {
+      if (nextStatus === "APPROVED" || nextStatus === "REVISION_REQUESTED" || nextStatus === "REJECTED") {
         await tx.notification.create({
           data: {
             userId: design.createdById,
-            type: data.status === "APPROVED" ? "APPROVAL_REQUIRED" as const : "DESIGN_REVISION_REQUESTED" as const,
-            title: `Design ${data.status.toLowerCase()}`,
-            message: data.comments || `Design has been ${data.status.toLowerCase()}`,
+            type: nextStatus === "APPROVED" ? "APPROVAL_REQUIRED" as const : "DESIGN_REVISION_REQUESTED" as const,
+            title: `Design ${nextStatus.toLowerCase()}`,
+            message: data.comments || `Design has been ${nextStatus.toLowerCase()}`,
             link: `/work-orders/${design.workOrderId}`,
           },
         })

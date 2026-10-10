@@ -23,7 +23,6 @@ import {
   Pencil, Trash2, Lock, ChevronDown
 } from "lucide-react"
 import { useAuthStore } from "@/stores/authStore"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import { WORK_ORDER_STATUSES, PRIORITIES, INVENTORY_CATEGORIES } from "@/lib/constants"
 import { paymentRecordsFromWorkOrder, methodFromPayment } from "@/lib/payments"
 import { paymentMethodLabel } from "@/lib/payments"
@@ -363,6 +362,15 @@ export default function WorkOrderDetailPage() {
     onError: (err: any) => toast.error(err.message),
   })
 
+  const unvoidDesignMutation = useMutation({
+    mutationFn: (designId: string) => api.patch(`/designs/${designId}`, { status: "UNVOID" }),
+    onSuccess: () => {
+      toast.success("Design restored")
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
   const deleteItemImageMutation = useMutation({
     mutationFn: async (itemId: string) => {
       await api.patch(`/work-orders/${params.id}/items`, { itemId, image: null })
@@ -463,15 +471,6 @@ export default function WorkOrderDetailPage() {
   const inventoryUsedCost = actualMaterialCost - purchasedMaterialCost
   const extraCost = Math.max(0, actualMaterialCost - estimatedMaterialCost)
   const pendingSupplierPayments = purchaseEntries.filter((pe: any) => pe.paymentStatus === "PENDING").reduce((s: number, pe: any) => s + pe.totalCost, 0)
-
-  const costData = [
-    ...expenseRows.reduce((acc: any, r: any) => {
-      const existing = acc.find((a: any) => a.name === r.category)
-      if (existing) existing.value += r.amount
-      else acc.push({ name: r.category, value: r.amount })
-      return acc
-    }, []),
-  ]
 
   const labourUsers = (usersData?.users || []).filter((u: any) => u.role === "LABOUR" || u.role === "DRIVER").map((u: any) => ({
     ...u,
@@ -815,20 +814,6 @@ export default function WorkOrderDetailPage() {
               </div>
             </div>
 
-            {costData.length > 0 && (
-              <div className="h-48 mt-4">
-                <p className="text-sm font-medium text-gray-700 mb-3">Cost Breakdown</p>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={costData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
-                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#4F8EF7" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            )}
           </CardContent>
 
           {/* Payment History Modal + Record Payment */}
@@ -1712,6 +1697,9 @@ export default function WorkOrderDetailPage() {
                 )}
                 {canVoidDesign && !isVoid && (
                   <Button size="sm" variant="destructive" onClick={() => setConfirmAction({ message: "Mark this design as void? It will be locked from viewing.", confirmLabel: "Void", variant: "warning", onConfirm: () => voidDesignMutation.mutate(d.id) })} disabled={voidDesignMutation.isPending}>Void</Button>
+                )}
+                {canVoidDesign && isVoid && (
+                  <Button size="sm" variant="success" onClick={() => setConfirmAction({ message: "Restore this design? It will become viewable again with its previous status.", confirmLabel: "Unvoid", variant: "info", onConfirm: () => unvoidDesignMutation.mutate(d.id) })} disabled={unvoidDesignMutation.isPending}>Unvoid</Button>
                 )}
               </div>
             </div>
