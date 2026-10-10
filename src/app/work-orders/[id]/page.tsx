@@ -1159,6 +1159,7 @@ export default function WorkOrderDetailPage() {
                   </div>
                 </div>
               )}
+              {/* Work Order Items section commented out — items are already shown in the top section above.
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs text-gray-400">Work Order Items</p>
@@ -1256,6 +1257,7 @@ export default function WorkOrderDetailPage() {
                   )}
                 </div>
               </div>
+              */}
               {wo.notes && <div><p className="text-xs text-gray-400">Notes</p><p className="text-sm text-gray-700 mt-1">{wo.notes}</p></div>}
             </div>
           </CardContent>
