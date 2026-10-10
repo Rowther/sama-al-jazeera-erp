@@ -354,6 +354,15 @@ export default function WorkOrderDetailPage() {
     onError: (err: any) => toast.error(err.message),
   })
 
+  const voidDesignMutation = useMutation({
+    mutationFn: (designId: string) => api.patch(`/designs/${designId}`, { status: "VOID" }),
+    onSuccess: () => {
+      toast.success("Design voided")
+      queryClient.invalidateQueries({ queryKey: ["work-order", params.id] })
+    },
+    onError: (err: any) => toast.error(err.message),
+  })
+
   const deleteItemImageMutation = useMutation({
     mutationFn: async (itemId: string) => {
       await api.patch(`/work-orders/${params.id}/items`, { itemId, image: null })
@@ -365,7 +374,7 @@ export default function WorkOrderDetailPage() {
     onError: (err: any) => toast.error(err.message),
   })
 
-  const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ message: string; onConfirm: () => void; confirmLabel?: string; variant?: "danger" | "warning" | "info" } | null>(null)
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-64"><div className="h-8 w-8 rounded-lg bg-[#4F8EF7] animate-pulse" /></div>
@@ -471,6 +480,7 @@ export default function WorkOrderDetailPage() {
   const workOrderItems = (wo?.workOrderItems || []).map((i: any) => ({ id: i.id, name: i.name, quantity: i.quantity }))
   const canManage = user?.role === "OWNER" || user?.role === "MANAGER"
   const isDesigner = user?.role === "DESIGNER"
+  const canVoidDesign = canManage || isDesigner
   const isInventoryManager = user?.role === "INVENTORY_MANAGER"
   const isAccountant = user?.role === "ACCOUNTANT"
   const canReviewMaterials = canManage || isAccountant
@@ -1670,11 +1680,13 @@ export default function WorkOrderDetailPage() {
           {(wo.designs || []).length === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">No designs uploaded yet</p>
           )}
-          {(wo.designs || []).map((d: any) => (
-            <div key={d.id} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 mb-2">
+          {(wo.designs || []).map((d: any) => {
+            const isVoid = d.status === "VOID"
+            return (
+            <div key={d.id} className={`flex items-center justify-between p-3 rounded-lg mb-2 ${isVoid ? "bg-red-50 border-2 border-[#F45D5D]" : "bg-gray-50"}`}>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-900">{d.title}</p>
+                  <p className={`text-sm font-medium ${isVoid ? "text-gray-500 line-through" : "text-gray-900"}`}>{d.title}</p>
                   <StatusBadge status={d.status} />
                 </div>
                 <p className="text-xs text-gray-400">
@@ -1686,7 +1698,7 @@ export default function WorkOrderDetailPage() {
                 {Array.isArray(d.files) && d.files.length > 0 && (
                   <div className="flex gap-1">
                     {d.files.map((f: string, i: number) => (
-                      <Button key={i} variant="ghost" size="sm" onClick={() => window.open(f, "_blank")}>File {i + 1}</Button>
+                      <Button key={i} variant="ghost" size="sm" disabled={isVoid} onClick={() => window.open(f, "_blank")}>View File</Button>
                     ))}
                   </div>
                 )}
@@ -1696,9 +1708,13 @@ export default function WorkOrderDetailPage() {
                     <Button size="sm" variant="warning" onClick={() => reviseDesignMutation.mutate(d.id)} disabled={reviseDesignMutation.isPending}>Revise</Button>
                   </div>
                 )}
+                {canVoidDesign && !isVoid && (
+                  <Button size="sm" variant="destructive" onClick={() => setConfirmAction({ message: "Mark this design as void? It will be locked from viewing.", confirmLabel: "Void", variant: "warning", onConfirm: () => voidDesignMutation.mutate(d.id) })} disabled={voidDesignMutation.isPending}>Void</Button>
+                )}
               </div>
             </div>
-          ))}
+            )
+          })}
 
           {(isDesigner || canManage) && (
             <form onSubmit={handleDesignSubmit} className="mt-4 p-4 rounded-xl bg-gray-50 border border-gray-200">
@@ -1737,8 +1753,8 @@ export default function WorkOrderDetailPage() {
         onConfirm={() => { if (confirmAction) confirmAction.onConfirm(); setConfirmAction(null) }}
         title="Confirm"
         description={confirmAction?.message || ""}
-        confirmLabel="Delete"
-        variant="danger"
+        confirmLabel={confirmAction?.confirmLabel || "Delete"}
+        variant={confirmAction?.variant || "danger"}
       />
     </div>
   )

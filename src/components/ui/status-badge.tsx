@@ -41,6 +41,7 @@ const statusColorMap: Record<string, string> = {
   APPROVED_REVIEW: 'bg-green-50 text-green-600',
   REVISION_REQUESTED: 'bg-orange-50 text-orange-600',
   REJECTED: 'bg-red-50 text-red-600',
+  VOID: 'bg-red-100 text-red-700',
 }
 
 const statusTooltips: Record<string, string> = {
@@ -72,6 +73,7 @@ const statusTooltips: Record<string, string> = {
   APPROVED_REVIEW: 'Review completed and approved.',
   REVISION_REQUESTED: 'Changes have been requested. Needs resubmission.',
   REJECTED: 'Request was not approved.',
+  VOID: 'This design has been voided and is locked from viewing.',
 }
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {

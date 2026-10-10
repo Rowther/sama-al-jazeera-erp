@@ -9,6 +9,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 
     const data = await request.json()
 
+    if (data.status === "VOID" && !["OWNER", "MANAGER", "DESIGNER"].includes(user.role)) {
+      return NextResponse.json({ message: "You are not allowed to void a design" }, { status: 403 })
+    }
+
     const result = await prisma.$transaction(async (tx) => {
       const design = await tx.design.findUnique({ where: { id: params.id } })
       if (!design) throw new Error("NOT_FOUND")

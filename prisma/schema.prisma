@@ -54,6 +54,7 @@ enum DesignRevisionStatus {
   APPROVED
   REVISION_REQUESTED
   REJECTED
+  VOID
 }
 
 enum MaterialStatus {
