@@ -149,10 +149,7 @@ export default function EnhancedJobCardPage() {
   }
 
   const workers = wo?.workerAssignments || []
-  const stages = wo?.productionStages || []
   const jc = jobCard || {}
-
-  const completedStages = stages.filter((s: any) => s.status === "COMPLETED")
 
   const handleChecklistToggle = (key: string) => {
     jobCardMutation.mutate({ [key]: !jc[key] })
@@ -202,7 +199,7 @@ export default function EnhancedJobCardPage() {
       {/* Top Status Bar */}
       <Card className="border-t-4 border-t-[#4F8EF7]">
         <CardContent className="p-4 sm:p-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-3 rounded-xl bg-[#EEF4FF]">
               <p className="text-xs text-gray-500">Status</p>
               <StatusBadge status={wo?.status} />
@@ -215,12 +212,6 @@ export default function EnhancedJobCardPage() {
               <p className="text-xs text-gray-500">Production Manager Budget</p>
               <p className="text-lg font-bold text-[#8B5CF6]">
                 {wo?.productionManagerBudget ? formatCurrency(wo.productionManagerBudget) : "-"}
-              </p>
-            </div>
-            <div className="text-center p-3 rounded-xl bg-amber-50">
-              <p className="text-xs text-gray-500">Progress</p>
-              <p className="text-lg font-bold text-[#FFB648]">
-                {stages.length > 0 ? Math.round((completedStages.length / stages.length) * 100) : 0}%
               </p>
             </div>
           </div>
@@ -239,6 +230,10 @@ export default function EnhancedJobCardPage() {
               <div className="p-3 rounded-xl bg-gray-50">
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Work Order Ref</p>
                 <p className="text-sm font-semibold text-gray-900 mt-1">{wo?.workOrderId}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-gray-50">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider">Estimate No</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{wo?.estimateRef || "-"}</p>
               </div>
               {canViewFinance && (
                 <div className="p-3 rounded-xl bg-gray-50">
@@ -315,7 +310,7 @@ export default function EnhancedJobCardPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <p className="text-sm font-semibold text-gray-900">{item.name}</p>
-                          <span className="text-xs text-gray-500">×{item.quantity}</span>
+                          <span className="text-lg font-bold text-[#4F8EF7]">×{item.quantity}</span>
                           {item.isDelayed && (
                             <span className="text-xs text-[#F45D5D] flex items-center gap-1">
                               <AlertTriangle className="h-3 w-3" /> {item.delayDays}d delayed
