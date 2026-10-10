@@ -172,7 +172,7 @@ export default function InventoryPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Price *</label>
-                  <Input type="number" required onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Unit price" />
+                  <Input type="number" step="0.01" required onChange={(e) => setForm({ ...form, price: e.target.value })} placeholder="Unit price" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700">Stock Quantity</label>
@@ -302,7 +302,7 @@ export default function InventoryPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Price *</label>
-                <Input type="number" required value={editForm.price || ""} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
+                <Input type="number" step="0.01" required value={editForm.price || ""} onChange={(e) => setEditForm({ ...editForm, price: e.target.value })} />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">Stock Quantity</label>
